@@ -1,0 +1,16 @@
+# Bỏ qua thư mục node_modules (dành cho dự án Node.js)
+node_modules/
+
+# Bỏ qua các file log
+*.log
+
+# Bỏ qua thư mục build hoặc dist (dành cho dự án có build)
+build/
+dist/
+
+# Bỏ qua các file IDE
+.vscode/
+.idea/
+
+# Bỏ qua file .env (chứa thông tin nhạy cảm)
+.env
