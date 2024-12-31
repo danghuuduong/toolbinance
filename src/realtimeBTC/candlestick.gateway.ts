@@ -3,11 +3,12 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import * as WebSocket from 'ws';
+
 @WebSocketGateway(3001, {
-  // Cổng WebSocket của backend
   cors: {
     origin: 'http://localhost:5173', // Cho phép frontend React kết nối từ localhost:5173
     methods: ['GET', 'POST'],
@@ -18,25 +19,77 @@ import * as WebSocket from 'ws';
 export class CandlestickGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
-  @WebSocketServer() server: Server; // Đối tượng WebSocket Server để gửi dữ liệu cho frontend
+  @WebSocketServer() server: Server;
 
-  private binanceWs: WebSocket; // WebSocket kết nối đến Binance
+  private binanceWs: WebSocket;
+  private reconnectInterval: any;
+  private currentInterval: any;
 
   constructor() {
-    // Khởi tạo WebSocket kết nối với Binance (kline_1m là nến 1 phút)
+    this.connectToBinance('1m'); // Khởi tạo kết nối mặc định với 1m
+  }
+
+  // Hàm kết nối WebSocket với Binance
+  connectToBinance(interval: string) {
+    console.log('â', interval);
     this.binanceWs = new WebSocket(
-      'wss://stream.binance.com:9443/ws/btcusdt@kline_1m',
+      `wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`,
     );
 
-    // Lắng nghe dữ liệu từ WebSocket của Binance
     this.binanceWs.on('message', (data: string) => {
-      const candlestickData = JSON.parse(data); // Dữ liệu nhận được từ WebSocket
-      this.handleCandlestickUpdate(candlestickData); // Xử lý dữ liệu nến
+      const candlestickData = JSON.parse(data);
+      this.handleCandlestickUpdate(candlestickData);
     });
 
     this.binanceWs.on('error', (err) => {
       console.error('WebSocket error: ', err);
     });
+
+    this.binanceWs.on('close', () => {
+      console.log('WebSocket closed');
+      this.reconnectWebSocket();
+    });
+
+    this.binanceWs.on('ping', (data) => {
+      this.binanceWs.pong(data);
+    });
+  }
+
+  // Hàm tự động reconnect sau khi WebSocket bị đóng
+  reconnectWebSocket() {
+    console.log('Reconnecting...');
+    if (this.reconnectInterval) {
+      clearInterval(this.reconnectInterval);
+    }
+    this.reconnectInterval = setInterval(() => {
+      this.connectToBinance(this.currentInterval); // Thực hiện reconnect với mặc định interval 1m
+    }, 10000);
+  }
+
+  // Lắng nghe sự kiện "changeTimeInterval" từ frontend
+  @SubscribeMessage('changeTimeInterval')
+  handleTimeIntervalChange(client: Socket, interval: string) {
+    this.currentInterval = interval;
+    // Đóng kết nối cũ và mở kết nối mới với interval được yêu cầu
+    if (this.binanceWs) {
+      this.binanceWs.close(); // Đóng kết nối WebSocket cũ
+    }
+    this.connectToBinance(interval); // Tạo kết nối WebSocket mới với interval mới
+  }
+
+  // Hàm xử lý dữ liệu nến và gửi cho frontend
+  handleCandlestickUpdate(data: any) {
+    const candlestick = data.k;
+    const candlestickInfo = {
+      openTime: new Date(candlestick.t).toLocaleString(),
+      openPrice: candlestick.o,
+      closePrice: candlestick.c,
+      highPrice: candlestick.h,
+      lowPrice: candlestick.l,
+      volume: candlestick.v,
+      closeTime: new Date(candlestick.T).toLocaleString(),
+    };
+    this.server.emit('candleStick-RealTime', candlestickInfo);
   }
 
   handleConnection(client: Socket) {
@@ -45,28 +98,5 @@ export class CandlestickGateway
 
   handleDisconnect(client: Socket) {
     console.log('Client disconnected');
-  }
-
-  // Hàm xử lý dữ liệu nến và gửi cho frontend
-  handleCandlestickUpdate(data: any) {
-    console.log('data', data);
-    const candlestick = data.k; // Extract dữ liệu từ Binance
-    const candlestickInfo = {
-      openTime: new Date(candlestick.t).toLocaleString(), // Thời gian mở nến
-      openPrice: candlestick.o, // Giá mở cửa
-      closePrice: candlestick.c, // Giá đóng cửa
-      highPrice: candlestick.h, // Giá cao nhất
-      lowPrice: candlestick.l, // Giá thấp nhất
-      volume: candlestick.v, // Khối lượng
-      closeTime: new Date(candlestick.T).toLocaleString(), // Thời gian đóng nến
-      quoteAssetVolume: candlestick.q, // Khối lượng giá trị tài sản báo giá
-      numberOfTrades: candlestick.n, // Số lượng giao dịch
-      takerBuyBaseAssetVolume: candlestick.b, // Khối lượng tài sản cơ bản của các giao dịch mua
-      takerBuyQuoteAssetVolume: candlestick.a, // Khối lượng tài sản báo giá của các giao dịch mua
-      ignore: candlestick.I, // Giá trị bỏ qua (không sử dụng)
-    };
-
-    // Trả về tất cả giá trị
-    this.server.emit('candleStick-RealTime', candlestickInfo);
   }
 }
