@@ -17,8 +17,7 @@ import * as WebSocket from 'ws';
   },
 })
 export class CandlestickGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
   private binanceWs: WebSocket;
@@ -31,7 +30,7 @@ export class CandlestickGateway
 
   // Hàm kết nối WebSocket với Binance
   connectToBinance(interval: string) {
-    console.log('â', interval);
+    console.log('â', interval); //1
     this.binanceWs = new WebSocket(
       `wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`,
     );
@@ -46,40 +45,38 @@ export class CandlestickGateway
     });
 
     this.binanceWs.on('close', () => {
-      console.log('WebSocket closed');
       this.reconnectWebSocket();
     });
 
     this.binanceWs.on('ping', (data) => {
+      console.log(' ping', data);
       this.binanceWs.pong(data);
     });
   }
 
   // Hàm tự động reconnect sau khi WebSocket bị đóng
   reconnectWebSocket() {
-    console.log('Reconnecting...');
-    if (this.reconnectInterval) {
-      clearInterval(this.reconnectInterval);
-    }
-    this.reconnectInterval = setInterval(() => {
-      this.connectToBinance(this.currentInterval); // Thực hiện reconnect với mặc định interval 1m
-    }, 10000);
+    console.log('Reconnecting...', this.currentInterval);
+    this.connectToBinance(this.currentInterval);
   }
 
   // Lắng nghe sự kiện "changeTimeInterval" từ frontend
   @SubscribeMessage('changeTimeInterval')
   handleTimeIntervalChange(client: Socket, interval: string) {
-    this.currentInterval = interval;
+
     // Đóng kết nối cũ và mở kết nối mới với interval được yêu cầu
     if (this.binanceWs) {
       this.binanceWs.close(); // Đóng kết nối WebSocket cũ
+      this.currentInterval = interval;
     }
-    this.connectToBinance(interval); // Tạo kết nối WebSocket mới với interval mới
+
   }
 
   // Hàm xử lý dữ liệu nến và gửi cho frontend
   handleCandlestickUpdate(data: any) {
     const candlestick = data.k;
+    console.log("type", candlestick.i);
+
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
       openPrice: candlestick.o,
@@ -88,6 +85,7 @@ export class CandlestickGateway
       lowPrice: candlestick.l,
       volume: candlestick.v,
       closeTime: new Date(candlestick.T).toLocaleString(),
+      type: candlestick.i
     };
     this.server.emit('candleStick-RealTime', candlestickInfo);
   }
