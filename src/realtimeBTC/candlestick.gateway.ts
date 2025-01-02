@@ -17,7 +17,8 @@ import * as WebSocket from 'ws';
   },
 })
 export class CandlestickGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer() server: Server;
 
   private binanceWs: WebSocket;
@@ -63,19 +64,16 @@ export class CandlestickGateway
   // Lắng nghe sự kiện "changeTimeInterval" từ frontend
   @SubscribeMessage('changeTimeInterval')
   handleTimeIntervalChange(client: Socket, interval: string) {
-
     // Đóng kết nối cũ và mở kết nối mới với interval được yêu cầu
     if (this.binanceWs) {
       this.binanceWs.close(); // Đóng kết nối WebSocket cũ
       this.currentInterval = interval;
     }
-
   }
 
   // Hàm xử lý dữ liệu nến và gửi cho frontend
   handleCandlestickUpdate(data: any) {
     const candlestick = data.k;
-    console.log("type", candlestick.i);
 
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
@@ -85,7 +83,7 @@ export class CandlestickGateway
       lowPrice: candlestick.l,
       volume: candlestick.v,
       closeTime: new Date(candlestick.T).toLocaleString(),
-      type: candlestick.i
+      type: candlestick.i,
     };
     this.server.emit('candleStick-RealTime', candlestickInfo);
   }

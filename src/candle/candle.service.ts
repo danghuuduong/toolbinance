@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { paramGetCandleDto } from './dto/param-candle.dto';
 import * as ccxt from 'ccxt';
-import { Timeframe } from './dto/timeframe.enum';
 
 @Injectable()
 export class CandleService {
