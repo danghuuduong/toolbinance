@@ -6,6 +6,7 @@ import {
   SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { StatusTradingService } from 'src/status-trading/status-trading.service';
 import * as WebSocket from 'ws';
 
 @WebSocketGateway(3001, {
@@ -17,21 +18,34 @@ import * as WebSocket from 'ws';
   },
 })
 export class CandlestickGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
   private binanceWs: WebSocket;
-  private reconnectInterval: any;
   private currentInterval: any;
+  private statusTradingResult: any;
 
-  constructor() {
+  constructor(private readonly statusTradingService: StatusTradingService, // Inject service 
+  ) {
     this.connectToBinance('1m'); // Khởi tạo kết nối mặc định với 1m
+    this.handleStatusTrading();
+  }
+
+
+
+
+  async handleStatusTrading() {
+    try {
+      this.statusTradingResult = await this.statusTradingService.getStatusTrading();
+    } catch (error) {
+      console.error('Error getStatusTrading', error);
+    }
   }
 
   // Hàm kết nối WebSocket với Binance
   connectToBinance(interval: string) {
-    console.log('â', interval); //1
+    console.log('interval', interval); //1
+
     this.binanceWs = new WebSocket(
       `wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`,
     );
@@ -39,6 +53,7 @@ export class CandlestickGateway
     this.binanceWs.on('message', (data: string) => {
       const candlestickData = JSON.parse(data);
       this.handleCandlestickUpdate(candlestickData);
+      this.handleStatusTrading()
     });
 
     this.binanceWs.on('error', (err) => {
@@ -73,6 +88,8 @@ export class CandlestickGateway
 
   // Hàm xử lý dữ liệu nến và gửi cho frontend
   handleCandlestickUpdate(data: any) {
+    console.log('statusTradingResult222', this.statusTradingResult); //1
+
     const candlestick = data.k;
 
     const candlestickInfo = {
@@ -84,6 +101,7 @@ export class CandlestickGateway
       volume: candlestick.v,
       closeTime: new Date(candlestick.T).toLocaleString(),
       type: candlestick.i,
+      statusTrading: this.statusTradingResult
     };
     this.server.emit('candleStick-RealTime', candlestickInfo);
   }
