@@ -6,6 +6,6 @@ import { StatusTradingController } from './status-trading.controller';
 @Module({
   controllers: [StatusTradingController],
   providers: [StatusTradingService],
-  exports:[StatusTradingService]
+  exports: [StatusTradingService],
 })
 export class StatusTradingModule {}

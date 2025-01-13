@@ -2,11 +2,8 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class StatusTradingService {
-
-
   private isTrading: boolean = false;
   private currentTradeAmount: number = 10; // bắt đầu với $10
-
 
   async startTrading() {
     this.isTrading = true;
@@ -17,7 +14,6 @@ export class StatusTradingService {
       message: 'Giao dịch bắt đầu',
       isTrading: this.isTrading,
     };
-
   }
 
   async stopTrading() {
@@ -28,12 +24,14 @@ export class StatusTradingService {
   async placeTrade(amount: number) {
     console.log(`Đang thực hiện giao dịch với ${amount}$`);
 
-    const stopLoss = 1000;  // giả sử SL là 1000 giá dưới mức giá hiện tại
+    const stopLoss = 1000; // giả sử SL là 1000 giá dưới mức giá hiện tại
     const takeProfit = 1000; // giả sử TP là 1000 giá trên mức giá hiện tại
 
     // Giả sử gọi API của Binance để thực hiện lệnh mua và thiết lập SL, TP
     // Đây chỉ là giả lập, bạn sẽ thay bằng API thực tế của Binance
-    console.log(`Thực hiện lệnh mua với ${amount}$, SL: ${stopLoss}, TP: ${takeProfit}`);
+    console.log(
+      `Thực hiện lệnh mua với ${amount}$, SL: ${stopLoss}, TP: ${takeProfit}`,
+    );
 
     // Sau khi thực hiện lệnh mua, chờ kết quả (thua hoặc thắng)
     // Nếu thua, tăng số tiền giao dịch lên 20$, 40$, ...
@@ -47,9 +45,7 @@ export class StatusTradingService {
     // }
   }
 
-
   async getStatusTrading() {
     return this.isTrading;
   }
-
 }

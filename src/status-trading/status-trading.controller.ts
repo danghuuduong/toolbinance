@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { StatusTradingService } from './status-trading.service';
-import { CreateStatusTradingDto } from './dto/create-status-trading.dto';
 
 @Controller('status')
 export class StatusTradingController {
   constructor(private readonly statusTradingService: StatusTradingService) {}
+  @Get('status-trading')
+  async getStatus() {
+    return this.statusTradingService.getStatusTrading(); // Giả sử bạn có phương thức getStatus trong service
+  }
 
   @Post('start-trading')
   async startTrading() {
@@ -15,5 +18,4 @@ export class StatusTradingController {
   async stopTrading() {
     return this.statusTradingService.stopTrading();
   }
-
 }
