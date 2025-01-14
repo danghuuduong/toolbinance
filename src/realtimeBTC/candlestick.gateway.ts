@@ -18,25 +18,25 @@ import * as WebSocket from 'ws';
   },
 })
 export class CandlestickGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer() server: Server;
 
   private binanceWs: WebSocket;
   private currentInterval: any;
   private statusTradingResult: any;
 
-  constructor(private readonly statusTradingService: StatusTradingService, // Inject service 
+  constructor(
+    private readonly statusTradingService: StatusTradingService, // Inject service
   ) {
     this.connectToBinance('1m'); // Khởi tạo kết nối mặc định với 1m
     this.handleStatusTrading();
   }
 
-
-
-
   async handleStatusTrading() {
     try {
-      this.statusTradingResult = await this.statusTradingService.getStatusTrading();
+      this.statusTradingResult =
+        await this.statusTradingService.getStatusTrading();
     } catch (error) {
       console.error('Error getStatusTrading', error);
     }
@@ -53,7 +53,7 @@ export class CandlestickGateway
     this.binanceWs.on('message', (data: string) => {
       const candlestickData = JSON.parse(data);
       this.handleCandlestickUpdate(candlestickData);
-      this.handleStatusTrading()
+      this.handleStatusTrading();
     });
 
     this.binanceWs.on('error', (err) => {
@@ -101,7 +101,7 @@ export class CandlestickGateway
       volume: candlestick.v,
       closeTime: new Date(candlestick.T).toLocaleString(),
       type: candlestick.i,
-      statusTrading: this.statusTradingResult
+      statusTrading: this.statusTradingResult,
     };
     this.server.emit('candleStick-RealTime', candlestickInfo);
   }
