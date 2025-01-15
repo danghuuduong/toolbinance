@@ -6,6 +6,7 @@ import { CandlestickModule } from './realtimeBTC/candlestick.module';
 import { StatusTradingModule } from './status-trading/status-trading.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -23,6 +24,8 @@ import { MongooseModule } from '@nestjs/mongoose';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
