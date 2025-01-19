@@ -103,7 +103,7 @@ export class CandlestickGateway
       type: candlestick.i,
       statusTrading: this.statusTradingResult,
     };
-    this.server.emit('candleStick-RealTime', candlestickInfo);
+      this?.server?.emit('candleStick-RealTime', candlestickInfo);
   }
 
   handleConnection(client: Socket) {
