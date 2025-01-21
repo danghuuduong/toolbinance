@@ -7,6 +7,7 @@ import { StatusTradingModule } from './status-trading/status-trading.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
+import { MyInfomationModule } from './my-infomation/my-infomation.module';
 
 @Module({
   imports: [
@@ -26,6 +27,8 @@ import { UsersModule } from './users/users.module';
     }),
 
     UsersModule,
+
+    MyInfomationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

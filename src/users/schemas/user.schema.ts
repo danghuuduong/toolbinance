@@ -18,10 +18,10 @@ export class User {
   profit: string;
 
   @Prop({ type: String })
-  deathCount: String;
+  deathCount: string;
 
   @Prop({ type: String })
-  totalOrders: String;
+  totalOrders: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
