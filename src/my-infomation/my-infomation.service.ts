@@ -25,11 +25,17 @@ export class MyInfomationService {
 
       const balance = await this.exchange.fetchBalance();
 
-      console.log('Balance details:', balance);
       // In ra số dư của tài khoản
-      return {
-        currency: balance,
+      const data = {
+        info: balance.info,
+        USDT: balance.USDT,
+        free: balance.USDT,
+        timestamp: balance.timestamp,
+        datetime: balance.datetime,
       };
+      console.log('data: ne', data);
+
+      return data;
     } catch (error) {
       console.error('Error fetching balance:', error);
     }

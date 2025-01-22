@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { CandleModule } from './candle/candle.module';
+import { CandleModule } from './candleVolum/candle.module';
 import { CandlestickModule } from './realtimeBTC/candlestick.module';
 import { StatusTradingModule } from './status-trading/status-trading.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
