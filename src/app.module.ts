@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
 import { MyInfomationModule } from './my-infomation/my-infomation.module';
+import { AmountModule } from './amount/amount.module';
 
 @Module({
   imports: [
@@ -29,6 +30,8 @@ import { MyInfomationModule } from './my-infomation/my-infomation.module';
     UsersModule,
 
     MyInfomationModule,
+
+    AmountModule,
   ],
   controllers: [AppController],
   providers: [AppService],

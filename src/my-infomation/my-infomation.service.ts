@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import axios from 'axios';
 import * as ccxt from 'ccxt';
 
 @Injectable()
@@ -18,12 +19,25 @@ export class MyInfomationService {
     }); // Sử dụng Binance để lấy dữ liệu
   }
   // https://testnet.binancefuture.com/vi/futures/BTCUSDT
+
+  async getServerTime() {
+    try {
+      const response = await axios.get('https://api.binance.com/api/v3/time');
+      return response.data.serverTime; // Trả về serverTime từ Binance
+    } catch (error) {
+      console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
+      throw error;
+    }
+  }
+
   async getMyInfomation() {
     try {
       // Thiết lập chế độ Sandbox (testnet)
       this.exchange.setSandboxMode(true);
-
-      const balance = await this.exchange.fetchBalance();
+      const serverTime = await this.getServerTime();
+      const balance = await this.exchange.fetchBalance({
+        timestamp: serverTime,
+      });
 
       // In ra số dư của tài khoản
       const data = {
@@ -33,7 +47,6 @@ export class MyInfomationService {
         timestamp: balance.timestamp,
         datetime: balance.datetime,
       };
-      console.log('data: ne', data);
 
       return data;
     } catch (error) {
