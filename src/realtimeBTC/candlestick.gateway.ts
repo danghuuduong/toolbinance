@@ -6,7 +6,7 @@ import {
   SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { StatusTradingService } from 'src/status-trading/status-trading.service';
+import { startTradingService } from 'src/start-trading/start-trading.service';
 import * as WebSocket from 'ws';
 
 @WebSocketGateway(3001, {
@@ -17,26 +17,30 @@ import * as WebSocket from 'ws';
     credentials: true, // Nếu cần truyền cookie hoặc dữ liệu xác thực
   },
 })
+
 export class CandlestickGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
   private binanceWs: WebSocket;
   private currentInterval: any;
-  private statusTradingResult: any;
+  private isTrading: boolean = false;
+  private totalAmount: number = 0;
+  private moneyfodingOne: number = 0;
+  private foldingCurrent: number = 0;
 
-  constructor(
-    private readonly statusTradingService: StatusTradingService, // Inject service
-  ) {
+  constructor(private readonly startTradingService: startTradingService) {
     this.connectToBinance('1m'); // Khởi tạo kết nối mặc định với 1m
-    this.handleStatusTrading();
+    this.handleStarTrading();
   }
 
-  async handleStatusTrading() {
+  async handleStarTrading() {
     try {
-      this.statusTradingResult =
-        await this.statusTradingService.getStatusTrading();
+      const result = await this.startTradingService.getStatusTrading();
+      this.isTrading = result.isTrading;
+      this.totalAmount = result.totalAmount;
+      this.moneyfodingOne = result.moneyfodingOne;
+      this.foldingCurrent = result.foldingCurrent;
     } catch (error) {
       console.error('Error getStatusTrading', error);
     }
@@ -53,7 +57,7 @@ export class CandlestickGateway
     this.binanceWs.on('message', (data: string) => {
       const candlestickData = JSON.parse(data);
       this.handleCandlestickUpdate(candlestickData);
-      this.handleStatusTrading();
+      this.handleStarTrading();
     });
 
     this.binanceWs.on('error', (err) => {
@@ -88,7 +92,7 @@ export class CandlestickGateway
 
   // Hàm xử lý dữ liệu nến và gửi cho frontend
   handleCandlestickUpdate(data: any) {
-    console.log('statusTradingResult222', this.statusTradingResult); //1
+    console.log('statusTradingResult222', this.isTrading); //1
 
     const candlestick = data.k;
 
@@ -101,9 +105,9 @@ export class CandlestickGateway
       volume: candlestick.v,
       closeTime: new Date(candlestick.T).toLocaleString(),
       type: candlestick.i,
-      statusTrading: this.statusTradingResult,
+      statusTrading: this.isTrading,
     };
-      this?.server?.emit('candleStick-RealTime', candlestickInfo);
+    this?.server?.emit('candleStick-RealTime', candlestickInfo);
   }
 
   handleConnection(client: Socket) {

@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CandleModule } from './candleVolum/candle.module';
 import { CandlestickModule } from './realtimeBTC/candlestick.module';
-import { StatusTradingModule } from './status-trading/status-trading.module';
+import { StatusTradingModule } from './start-trading/start-trading.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
