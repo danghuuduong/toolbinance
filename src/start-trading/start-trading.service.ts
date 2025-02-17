@@ -24,12 +24,12 @@ export class startTradingService {
     };
   }
 
-  async stopTrading() {
+  stopTrading() {
     this.isTrading = false;
     return { message: 'Giao dịch đã dừng' };
   }
 
-  async getStatusTrading() {
+  getStatusTrading() {
     return {
       isTrading: this.isTrading,
       totalAmount: this.totalAmount,
