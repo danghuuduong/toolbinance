@@ -4,7 +4,7 @@ import { startTradingDto } from './dto/start-trading.dto';
 
 @Controller('status')
 export class StatusTradingController {
-  constructor(private readonly startTradingService: startTradingService) { }
+  constructor(private readonly startTradingService: startTradingService) {}
   @Get('status-trading')
   async getStatus() {
     return this.startTradingService.getStatusTrading(); // Giả sử bạn có phương thức getStatus trong service

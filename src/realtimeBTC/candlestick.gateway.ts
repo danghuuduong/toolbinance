@@ -17,7 +17,6 @@ import * as WebSocket from 'ws';
     credentials: true, // Nếu cần truyền cookie hoặc dữ liệu xác thực
   },
 })
-
 export class CandlestickGateway
   implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
@@ -30,11 +29,11 @@ export class CandlestickGateway
   private foldingCurrent: number = 0;
 
   constructor(private readonly startTradingService: startTradingService) {
-    this.connectToBinance('1m'); // Khởi tạo kết nối mặc định với 1m
-    this.handleStarTrading();
+    this.connectToBinance('1h'); // Khởi tạo kết nối mặc định với 1m
+    this.handleSetInfoMoney();
   }
 
-  async handleStarTrading() {
+  async handleSetInfoMoney() {
     try {
       const result = await this.startTradingService.getStatusTrading();
       this.isTrading = result.isTrading;
@@ -57,7 +56,7 @@ export class CandlestickGateway
     this.binanceWs.on('message', (data: string) => {
       const candlestickData = JSON.parse(data);
       this.handleCandlestickUpdate(candlestickData);
-      this.handleStarTrading();
+      this.mainTrading(candlestickData);
     });
 
     this.binanceWs.on('error', (err) => {
@@ -90,10 +89,8 @@ export class CandlestickGateway
     }
   }
 
-  // Hàm xử lý dữ liệu nến và gửi cho frontend
+  // Dữ liệu nến và gửi cho frontend
   handleCandlestickUpdate(data: any) {
-    console.log('statusTradingResult222', this.isTrading); //1
-
     const candlestick = data.k;
 
     const candlestickInfo = {
@@ -108,6 +105,23 @@ export class CandlestickGateway
       statusTrading: this.isTrading,
     };
     this?.server?.emit('candleStick-RealTime', candlestickInfo);
+  }
+
+  mainTrading(candle: any) {
+    const candlestick = candle.k;
+
+    const candlestickInfo = {
+      openTime: new Date(candlestick.t).toLocaleString(),
+      openPrice: candlestick.o,
+      closePrice: candlestick.c,
+      highPrice: candlestick.h,
+      lowPrice: candlestick.l,
+      volume: candlestick.v,
+      closeTime: new Date(candlestick.T).toLocaleString(),
+      type: candlestick.i,
+      statusTrading: this.isTrading,
+    };
+    console.log('🚀 candlestick.c', candlestick.c);
   }
 
   handleConnection(client: Socket) {

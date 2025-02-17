@@ -8,7 +8,7 @@ export class startTradingService {
   private foldingCurrent: number = 0;
 
   async startTrading(payload) {
-    const { moneyfodingOne, totalAmount, foldingCurrent } = payload
+    const { moneyfodingOne, totalAmount, foldingCurrent } = payload;
     this.isTrading = true;
     this.totalAmount = totalAmount;
     this.moneyfodingOne = moneyfodingOne;
@@ -20,7 +20,7 @@ export class startTradingService {
       isTrading: this.isTrading,
       moneyfodingOne,
       totalAmount,
-      foldingCurrent
+      foldingCurrent,
     };
   }
 
@@ -34,7 +34,7 @@ export class startTradingService {
       isTrading: this.isTrading,
       totalAmount: this.totalAmount,
       moneyfodingOne: this.moneyfodingOne,
-      foldingCurrent: this.foldingCurrent
-    }
+      foldingCurrent: this.foldingCurrent,
+    };
   }
 }
