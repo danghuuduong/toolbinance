@@ -21,7 +21,6 @@ export class AmountService {
   }
 
   async update(id: string, updateAmountDto: UpdateAmountDto) {
-    console.log('🚀 ~ câc', updateAmountDto);
     const existingAmount = await this.amountModel
       .findByIdAndUpdate(id, updateAmountDto, { new: true })
       .exec();

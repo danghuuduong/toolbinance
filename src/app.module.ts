@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { CandleModule } from './candleVolum/candle.module';
-import { CandlestickModule } from './realtimeBTC/candlestick.module';
+import { CandleModule } from './candle/candle.module';
 import { StatusTradingModule } from './start-trading/start-trading.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UsersModule } from './users/users.module';
-import { MyInfomationModule } from './my-infomation/my-infomation.module';
-import { AmountModule } from './amount/amount.module';
+import { UsersModule } from './my-infomation-users-from-app/users.module';
+import { MyInfomationModule } from './my-infomation-from-binance/my-infomation.module';
+import { AmountModule } from './money-history-changes/amount.module';
+import { realtimeBTCWebsoketModule } from './realtimeBTC-websoket/realtimeBTC-websoket.module';
 
 @Module({
   imports: [
     CandleModule,
-    CandlestickModule,
+    realtimeBTCWebsoketModule,
     StatusTradingModule,
     MongooseModule.forRootAsync({
       imports: [ConfigModule],

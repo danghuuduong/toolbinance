@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { paramGetCandleDto } from './dto/param-candle.dto';
 import * as ccxt from 'ccxt';
-import { paramGetCandleDto } from 'src/candleVolum/dto/param-candle.dto';
 
 @Injectable()
 export class CandleService {

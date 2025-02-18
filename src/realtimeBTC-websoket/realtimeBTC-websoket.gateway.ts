@@ -9,7 +9,7 @@ import { Server, Socket } from 'socket.io';
 import { startTradingService } from 'src/start-trading/start-trading.service';
 import * as WebSocket from 'ws';
 import { EMA } from 'technicalindicators';
-import { candlestickService } from './candlestick.service';
+import { realtimeBTCWebsoketService } from './realtimeBTC-websoketservice';
 
 @WebSocketGateway(3001, {
   cors: {
@@ -20,7 +20,7 @@ import { candlestickService } from './candlestick.service';
   },
 })
 
-export class CandlestickGateway
+export class realtimeBTCWebsoketGateway
   implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
@@ -34,10 +34,9 @@ export class CandlestickGateway
 
   constructor(
     private readonly startTradingService: startTradingService,
-    private readonly candlestickService: candlestickService
+    private readonly realtimeBTCWebsoketService: realtimeBTCWebsoketService
   ) {
-    this.connectToBinance(this.currentInterval); // Khởi tạo kết nối mặc định với 1h
-    this.handleSetInfoMoney();
+    this.connectToBinance(this.currentInterval); 
   }
 
   async handleSetInfoMoney() {
@@ -79,8 +78,6 @@ export class CandlestickGateway
     const candlestick = data.k;
     const isCandleClose = candlestick.x;
     const E = data.E;
-
-
     const date = new Date(E);
 
     // Lấy giờ, phút, giây và định dạng lại thời gian theo kiểu "00:00:00"
@@ -93,8 +90,8 @@ export class CandlestickGateway
 
 
 
-    console.log("🚀 ~ time_________", new Date(candlestick.T).toLocaleString(), timeString, isCandleClose)
-    isCandleClose && this.candlestickService.mainTrading(candlestick);
+    console.log("🚀 ~ time_________",candlestick.i, timeString, isCandleClose)
+    isCandleClose && this.realtimeBTCWebsoketService.mainTrading(candlestick);
 
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
@@ -102,7 +99,7 @@ export class CandlestickGateway
       closePrice: candlestick.c,
       highPrice: candlestick.h,
       lowPrice: candlestick.l,
-      volume: candlestick.v,  
+      volume: candlestick.v,
       closeTime: new Date(candlestick.T).toLocaleString(),
       type: candlestick.i,
       statusTrading: this.isTrading,
