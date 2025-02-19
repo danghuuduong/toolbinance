@@ -9,7 +9,7 @@ import { Server, Socket } from 'socket.io';
 import { startTradingService } from 'src/start-trading/start-trading.service';
 import * as WebSocket from 'ws';
 import { EMA } from 'technicalindicators';
-import { realtimeBTCWebsoketService } from './realtimeBTC-websoketservice';
+import { realtimeBTCWebsoketService } from './realtimeBTC-websoket.service';
 import { TimeService } from 'src/common/until/time/time.service';
 
 @WebSocketGateway(3001, {
@@ -81,7 +81,7 @@ export class realtimeBTCWebsoketGateway
 
     const timeBinance =  this.timeService.formatTimestampToDatetime(data.E)
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance);
-
+    
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
       openPrice: candlestick.o,

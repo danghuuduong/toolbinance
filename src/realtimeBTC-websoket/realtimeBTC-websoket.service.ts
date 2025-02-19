@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { CandleService } from 'src/candle/candle.service';
 import { Timeframe } from 'src/candle/dto/timeframe.enum';
 import { EMA } from 'technicalindicators';
+import { EmaCrossHistory } from './schemas/realtimeBTC-websoket.schema';
+import { Model } from 'mongoose';
+import { CreateEmaCrossHistoryDto } from './dto/create-ema-cross-history.dto';
 
 @Injectable()
 export class realtimeBTCWebsoketService {
-  constructor(private readonly candleService: CandleService) { }
+  constructor(
+    private readonly candleService: CandleService,
+    @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
+  ) { }
+
   private pricesCandleCloseList: number[] = [];
   private emaStatus: { status: string; time: string } = {
     status: 'no',
@@ -20,7 +28,16 @@ export class realtimeBTCWebsoketService {
     catch (error) { console.error('Error get Api 60 record faild', error); }
 
     const crossoverResult = this.checkEmaCrossover(this.pricesCandleCloseList);
-    return this.emaStatus = { status: crossoverResult, time: crossoverResult !== "no" ? timeString : "null" };
+
+    this.emaStatus = {
+      status: crossoverResult,
+      time: crossoverResult !== 'no' ? timeString : 'null',
+    };
+
+    console.log("crossoverResult",crossoverResult,timeString);
+    // crossoverResult !== 'no' && this.saveEmaCrossHistory(crossoverResult, timeString); 
+    this.saveEmaCrossHistory(crossoverResult, timeString); 
+    return this.emaStatus
   }
 
   checkEmaCrossover(pricesCandleCloseList: number[]): string {
@@ -41,6 +58,23 @@ export class realtimeBTCWebsoketService {
     return "no";
   }
 
+  async saveEmaCrossHistory(crossoverResult: string, timeString: string) {
+    const newData: CreateEmaCrossHistoryDto = {
+      cross: crossoverResult === 'up' ? 'up' : 'down',
+      isActiveExecuteTrade: true,
+      time: timeString,
+      moneyFoldingOne: '100',
+      foldingCurrent: 2,
+    };
+    const created = new this.EmaCrossHistoryModel(newData);
+    await created.save();
+  }
+  
+  async getAllEmaCrossHistory() {
+    const result = await this.EmaCrossHistoryModel.find().exec();
+    return result;
+  }
+  
   async callApiGetCandle() {
     return this.candleService.getBTCOLHCandles({
       limit: "60",
