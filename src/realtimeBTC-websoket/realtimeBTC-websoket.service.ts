@@ -27,16 +27,14 @@ export class realtimeBTCWebsoketService {
     }
     catch (error) { console.error('Error get Api 60 record faild', error); }
 
-    const crossoverResult = this.checkEmaCrossover(this.pricesCandleCloseList);
+    const crossoverResult = this.checkEmaCrossover(this.pricesCandleCloseList) as 'up' | 'down' | 'no';
 
     this.emaStatus = {
       status: crossoverResult,
       time: crossoverResult !== 'no' ? timeString : 'null',
     };
 
-    console.log("crossoverResult",crossoverResult,timeString);
-    // crossoverResult !== 'no' && this.saveEmaCrossHistory(crossoverResult, timeString); 
-    this.saveEmaCrossHistory(crossoverResult, timeString); 
+    crossoverResult !== 'no' && this.saveEmaCrossHistory(crossoverResult, timeString);
     return this.emaStatus
   }
 
@@ -58,9 +56,9 @@ export class realtimeBTCWebsoketService {
     return "no";
   }
 
-  async saveEmaCrossHistory(crossoverResult: string, timeString: string) {
+  async saveEmaCrossHistory(crossoverResult: 'up' | 'down', timeString: string) {
     const newData: CreateEmaCrossHistoryDto = {
-      cross: crossoverResult === 'up' ? 'up' : 'down',
+      cross: crossoverResult,
       isActiveExecuteTrade: true,
       time: timeString,
       moneyFoldingOne: '100',
@@ -69,12 +67,17 @@ export class realtimeBTCWebsoketService {
     const created = new this.EmaCrossHistoryModel(newData);
     await created.save();
   }
-  
-  async getAllEmaCrossHistory() {
-    const result = await this.EmaCrossHistoryModel.find().exec();
-    return result;
+
+  async getAllEmaCrossHistory(param: { page: number; limit: number }) {
+    const skip = param.page * param.limit;
+    const result = await this.EmaCrossHistoryModel.find()
+      .skip(skip) // Bỏ qua các bản ghi trước đó
+      .limit(param.limit) // Giới hạn số lượng bản ghi trả về
+      .exec();
+    return result
   }
   
+
   async callApiGetCandle() {
     return this.candleService.getBTCOLHCandles({
       limit: "60",
@@ -82,5 +85,5 @@ export class realtimeBTCWebsoketService {
     })
   }
 
-  getEmaStatus() { return this.emaStatus}
+  getEmaStatus() { return this.emaStatus }
 }
