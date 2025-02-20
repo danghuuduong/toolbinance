@@ -11,7 +11,7 @@ export class CreateEmaCrossHistoryDto {
   time: string;
 
   @IsString()
-  moneyFoldingOne: string;
+  moneyFoldingOne: string | number;
 
   @IsNumber()
   foldingCurrent: number;

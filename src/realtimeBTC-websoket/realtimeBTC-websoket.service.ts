@@ -6,36 +6,54 @@ import { EMA } from 'technicalindicators';
 import { EmaCrossHistory } from './schemas/realtimeBTC-websoket.schema';
 import { Model } from 'mongoose';
 import { CreateEmaCrossHistoryDto } from './dto/create-ema-cross-history.dto';
+import { startTradingService } from 'src/start-trading/start-trading.service';
 
 @Injectable()
 export class realtimeBTCWebsoketService {
   constructor(
     private readonly candleService: CandleService,
+    private readonly startTradingService: startTradingService,
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
   ) { }
 
   private pricesCandleCloseList: number[] = [];
   private emaStatus: { status: string; time: string } = {
     status: 'no',
-    time: 'null',
+    time: '',
   };
 
-  async mainTrading(timeString: string) {
-    try {
-      const candleList = await this.callApiGetCandle();
-      this.pricesCandleCloseList = candleList.map((value) => value.close);
-    }
+  async mainTrading(timeBinance: string) {
+    const resultSttatusTrading = this.startTradingService.getStatusTrading();
+
+    try { const candleList = await this.callApiGetCandle(); this.pricesCandleCloseList = candleList.map((value) => value.close); }
     catch (error) { console.error('Error get Api 60 record faild', error); }
 
-    const crossoverResult = this.checkEmaCrossover(this.pricesCandleCloseList) as 'up' | 'down' | 'no';
-
+    const crossOverResult = this.checkEmaCrossover(this.pricesCandleCloseList) as 'up' | 'down' | 'no';
+    
     this.emaStatus = {
-      status: crossoverResult,
-      time: crossoverResult !== 'no' ? timeString : 'null',
+      status: crossOverResult,
+      time: crossOverResult !== 'no' ? timeBinance : 'null',
     };
 
-    crossoverResult !== 'no' && this.saveEmaCrossHistory(crossoverResult, timeString);
-    return this.emaStatus
+    console.log('nhảy', timeBinance);
+
+    //1. Lưu vào Db lịch sử EMA cắt nhau nếu có
+    if (crossOverResult !== 'no') {
+      console.log('Cắt nhau không ==> ', crossOverResult);
+      const newData: CreateEmaCrossHistoryDto = {
+        cross: crossOverResult,
+        isActiveExecuteTrade: resultSttatusTrading.isTrading, //isTrading
+        time: timeBinance,
+        moneyFoldingOne: resultSttatusTrading.moneyfodingOne || 0,
+        foldingCurrent: resultSttatusTrading.foldingCurrent || 0,
+      };
+      console.log('CnewData', newData);
+
+      const created = new this.EmaCrossHistoryModel(newData);
+      await created.save();
+    }
+
+    return
   }
 
   checkEmaCrossover(pricesCandleCloseList: number[]): string {
@@ -56,27 +74,36 @@ export class realtimeBTCWebsoketService {
     return "no";
   }
 
-  async saveEmaCrossHistory(crossoverResult: 'up' | 'down', timeString: string) {
-    const newData: CreateEmaCrossHistoryDto = {
-      cross: crossoverResult,
-      isActiveExecuteTrade: true,
-      time: timeString,
-      moneyFoldingOne: '100',
-      foldingCurrent: 2,
-    };
-    const created = new this.EmaCrossHistoryModel(newData);
-    await created.save();
-  }
 
   async getAllEmaCrossHistory(param: { page: number; limit: number }) {
-    const skip = param.page * param.limit;
-    const result = await this.EmaCrossHistoryModel.find()
-      .skip(skip) // Bỏ qua các bản ghi trước đó
-      .limit(param.limit) // Giới hạn số lượng bản ghi trả về
-      .exec();
-    return result
+    try {
+      const skip = param.page * param.limit;
+      const result = await this.EmaCrossHistoryModel.find()
+        .skip(skip)
+        .limit(param.limit)
+        .sort({ time: -1 })
+        .exec();
+
+      const totalCount = await this.EmaCrossHistoryModel.countDocuments();
+      const totalPages = Math.ceil(totalCount / param.limit);
+      const currentPage = param.page;
+
+      return {
+        status: 'ok',  // Trạng thái yêu cầu thành công
+        message: 'Data fetched successfully',  // Thông báo
+        totalCount,
+        totalPages,
+        currentPage,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message || 'An error occurred while fetching data',
+      };
+    }
   }
-  
+
 
   async callApiGetCandle() {
     return this.candleService.getBTCOLHCandles({
