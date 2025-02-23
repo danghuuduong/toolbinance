@@ -1,12 +1,8 @@
-import { IsString, IsEmail, IsNumber } from 'class-validator';
+import { IsString, IsEmail, IsNumber, isString, IsBoolean } from 'class-validator';
 
 export class startTradingDto {
-  @IsNumber()
-  moneyfodingOne: number;
-
-  @IsNumber()
-  totalAmount: number;
-
-  @IsNumber()
-  foldingCurrent: number;
+  @IsString()
+  tradeRate: string;
+  @IsString()
+  largestMoney: string;
 }

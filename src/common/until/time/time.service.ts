@@ -3,7 +3,10 @@ import { Global, Injectable } from '@nestjs/common';
 
 @Global()
 @Injectable()
+
+
 export class TimeService {
+
   formatTimestampToDatetime(data): string {
     const timeBinance = new Date(data);
     const year = timeBinance.getUTCFullYear();

@@ -29,11 +29,8 @@ export class realtimeBTCWebsoketService {
     catch (error) { console.error('Error get Api 60 record faild', error); }
 
     const crossOverResult = this.checkEmaCrossover(this.pricesCandleCloseList) as 'up' | 'down' | 'no';
-    
-    this.emaStatus = {
-      status: crossOverResult,
-      time: crossOverResult !== 'no' ? timeBinance : 'null',
-    };
+
+    this.emaStatus = { status: crossOverResult, time: crossOverResult !== 'no' ? timeBinance : 'null', };
 
     console.log('nhảy', timeBinance);
 
@@ -42,7 +39,7 @@ export class realtimeBTCWebsoketService {
       console.log('Cắt nhau không ==> ', crossOverResult);
       const newData: CreateEmaCrossHistoryDto = {
         cross: crossOverResult,
-        isActiveExecuteTrade: resultSttatusTrading.isTrading, //isTrading
+        isActiveExecuteTrade: resultSttatusTrading.isTrading, //khoan
         time: timeBinance,
         moneyFoldingOne: resultSttatusTrading.moneyfodingOne || 0,
         foldingCurrent: resultSttatusTrading.foldingCurrent || 0,
@@ -52,6 +49,11 @@ export class realtimeBTCWebsoketService {
       const created = new this.EmaCrossHistoryModel(newData);
       await created.save();
     }
+    //  -------------------------------------------------------------------------------------------------------
+    //2. Thực hiện giao dịch
+
+
+
 
     return
   }
@@ -103,7 +105,6 @@ export class realtimeBTCWebsoketService {
       };
     }
   }
-
 
   async callApiGetCandle() {
     return this.candleService.getBTCOLHCandles({
