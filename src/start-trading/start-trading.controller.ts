@@ -1,13 +1,14 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Post } from '@nestjs/common';
 import { startTradingService } from './start-trading.service';
 import { startTradingDto } from './dto/start-trading.dto';
 
 @Controller('status')
 export class StatusTradingController {
-  constructor(private readonly startTradingService: startTradingService) {}
-  @Get('status-trading')
-  async getStatus() {
-    return this.startTradingService.getStatusTrading(); // Giả sử bạn có phương thức getStatus trong service
+  constructor(private readonly startTradingService: startTradingService) { }
+  @Get("start-trading-get")
+  async getStartTrading() {
+    const result = await this.startTradingService.getStartTradingData();
+    return result;
   }
 
   @Post('start-trading')

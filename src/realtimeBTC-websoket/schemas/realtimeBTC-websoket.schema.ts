@@ -10,16 +10,32 @@ export class EmaCrossHistory {
   cross: 'up' | 'dow';
 
   @Prop({ type: Boolean })
+  isTrading: boolean;
+
+  @Prop({ type: Boolean })
   isActiveExecuteTrade: boolean;
 
-  @Prop({ type: String })
-  time: string;
+  @Prop({ type: Boolean })
+  isWaitingForCompletion: boolean;
 
-  @Prop({ type: String })
-  moneyFoldingOne: string;
+  @Prop({ type: Number })
+  tradeRate: number;
+
+  @Prop({ type: Number })
+  totalAmount: number;
+
+  @Prop({ type: Number })
+  moneyfodingOne: number;
 
   @Prop({ type: Number })
   foldingCurrent: number;
+
+  @Prop({ type: Number })
+  largestMoney: number;
+  
+  @Prop({ type: String })
+  time: string;
+
 }
 
 export const EmaCrossHistoryschema = SchemaFactory.createForClass(EmaCrossHistory);

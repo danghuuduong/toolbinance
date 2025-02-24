@@ -7,12 +7,14 @@ import { EmaCrossHistory } from './schemas/realtimeBTC-websoket.schema';
 import { Model } from 'mongoose';
 import { CreateEmaCrossHistoryDto } from './dto/create-ema-cross-history.dto';
 import { startTradingService } from 'src/start-trading/start-trading.service';
+import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
 
 @Injectable()
 export class realtimeBTCWebsoketService {
   constructor(
     private readonly candleService: CandleService,
     private readonly startTradingService: startTradingService,
+    private readonly handleFoldingService: handleFoldingService,
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
   ) { }
 
@@ -23,7 +25,6 @@ export class realtimeBTCWebsoketService {
   };
 
   async mainTrading(timeBinance: string) {
-    const resultSttatusTrading = this.startTradingService.getStatusTrading();
 
     try { const candleList = await this.callApiGetCandle(); this.pricesCandleCloseList = candleList.map((value) => value.close); }
     catch (error) { console.error('Error get Api 60 record faild', error); }
@@ -31,26 +32,45 @@ export class realtimeBTCWebsoketService {
     const crossOverResult = this.checkEmaCrossover(this.pricesCandleCloseList) as 'up' | 'down' | 'no';
 
     this.emaStatus = { status: crossOverResult, time: crossOverResult !== 'no' ? timeBinance : 'null', };
+    const { data } = await this.startTradingService.getStartTradingData();
+    const resultSttatusTrading = data?.[0]
 
-    console.log('nhảy', timeBinance);
+    // if (resultSttatusTrading?.isActiveExecuteTrade) {  //nếu mà Đã vào tiền
+    //   if ("xong rồi") {
 
-    //1. Lưu vào Db lịch sử EMA cắt nhau nếu có
+    //     // a Update lại API (Lịch sử Chơi)
+    //     // b. Post Api isActiveExecuteTradeApi = false
+
+    //     if ("Ăn") {
+    //       // 1. foldingCurrent = 1
+    //       // 3/ totalAmount = 1400.
+    //       if (isWaiingTRading) {
+    //         //Cho phép dừng
+    //       }
+    //     } else ("Thua"){
+    //       {
+    //         const isFoldingbyMax = "folding" === 5
+
+    //         // 1. foldingCurrent = isFoldingbyMax ? (Trực tiếp bằng  1) : (foldingCurrent + 1)
+    //         // 2/ totalAmount = 1400
+    //         if (isWaiingTRading && isFoldingbyMax) {
+    //           //Cho phép dừng
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
+
     if (crossOverResult !== 'no') {
-      console.log('Cắt nhau không ==> ', crossOverResult);
-      const newData: CreateEmaCrossHistoryDto = {
-        cross: crossOverResult,
-        isActiveExecuteTrade: resultSttatusTrading.isTrading, //khoan
-        time: timeBinance,
-        moneyFoldingOne: resultSttatusTrading.moneyfodingOne || 0,
-        foldingCurrent: resultSttatusTrading.foldingCurrent || 0,
-      };
-      console.log('CnewData', newData);
-
-      const created = new this.EmaCrossHistoryModel(newData);
-      await created.save();
+      const { data } = await this.startTradingService.getStartTradingData();
+      const resultSttatusTrading = data?.[0]
+      // 1. Thực hiện EmaCrossHistorySave
+      this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
+      //  -------------------------------------------------------------------------------------------------------
+      // 2. Thực hiện giao dịch
+      this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
     }
-    //  -------------------------------------------------------------------------------------------------------
-    //2. Thực hiện giao dịch
+
 
 
 
@@ -112,6 +132,41 @@ export class realtimeBTCWebsoketService {
       type: Timeframe.ONE_MINUTE,
     })
   }
-
   getEmaStatus() { return this.emaStatus }
+
+  // -------------------------------------
+
+  async handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance) {
+    const newData: CreateEmaCrossHistoryDto = {
+      cross: crossOverResult,
+      isTrading: resultSttatusTrading?.isTrading,
+      isActiveExecuteTrade: resultSttatusTrading?.isActiveExecuteTrade, //khoan
+      isWaitingForCompletion: resultSttatusTrading?.isWaitingForCompletion,
+      tradeRate: resultSttatusTrading?.tradeRate,
+      totalAmount: resultSttatusTrading?.totalAmount,
+      moneyfodingOne: resultSttatusTrading?.moneyfodingOne,
+      foldingCurrent: resultSttatusTrading?.foldingCurrent,
+      largestMoney: resultSttatusTrading?.largestMoney,
+      time: timeBinance,
+    };
+    console.log('nhảy newData', newData);
+    const created = new this.EmaCrossHistoryModel(newData);
+    await created.save();
+  }
+
+  async handleStartExecuteTrade(crossOverResult, result, timeBinance) {
+    if (!result?.isActiveExecuteTradeApi && result?.isTrading) {
+
+      const totalAmount = (Number(result?.largestMoney) / 100) * Number(result?.tradeRate) || 0;
+      const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, result?.foldingCurrent);
+      if (crossOverResult === "up") { //mua
+        // + Viết tiếp hàm tính toán với 1000 giá BTC . làm sao chốt TP và SP đủ 32$
+
+      } else { //bán
+        // + Viết tiếp hàm tính toán với 1000 giá BTC . làm sao chốt TP và SP đủ 32$
+      }
+
+      //  2.update isActiveExecuteTrade = true
+    }
+  }
 }

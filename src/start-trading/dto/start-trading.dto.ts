@@ -1,8 +1,10 @@
+import { Transform } from 'class-transformer';
 import { IsString, IsEmail, IsNumber, isString, IsBoolean } from 'class-validator';
 
 export class startTradingDto {
-  @IsString()
-  tradeRate: string;
-  @IsString()
-  largestMoney: string;
+  @Transform(({ value }) => Number(value)) 
+  tradeRate: number;
+
+  @Transform(({ value }) => Number(value)) 
+  largestMoney: number;
 }

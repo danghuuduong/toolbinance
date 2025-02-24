@@ -39,20 +39,20 @@ export class realtimeBTCWebsoketGateway
     private readonly timeService: TimeService
   ) {
     this.connectToBinance(this.currentInterval);
-    this.handleSetInfoMoney();
+    // this.handleSetInfoMoney();
   }
 
-   handleSetInfoMoney() {
-    try {
-      const result = this.startTradingService.getStatusTrading();
-      this.isTrading = result.isTrading;
-      this.totalAmount = result.totalAmount;
-      this.moneyfodingOne = result.moneyfodingOne;
-      this.foldingCurrent = result.foldingCurrent;
-    } catch (error) {
-      console.error('Error getStatusTrading', error);
-    }
-  }
+  //  handleSetInfoMoney() {
+  //   try {
+  //     const result = this.startTradingService.getStatusTrading();
+  //     this.isTrading = result.isTrading;
+  //     this.totalAmount = result.totalAmount;
+  //     this.moneyfodingOne = result.moneyfodingOne;
+  //     this.foldingCurrent = result.foldingCurrent;
+  //   } catch (error) {
+  //     console.error('Error getStatusTrading', error);
+  //   }
+  // }
 
   // Hàm kết nối WebSocket
   connectToBinance(interval: string) {
@@ -91,7 +91,7 @@ export class realtimeBTCWebsoketGateway
       volume: candlestick.v,
       closeTime: new Date(candlestick.T).toLocaleString(),
       type: candlestick.i,
-      statusTrading: this.startTradingService.getStatusTrading().isTrading,
+      statusTrading: true,
       emaCrossOverStatus: this.realtimeBTCWebsoketService.getEmaStatus(),
       timeBinance: timeBinance,
     };

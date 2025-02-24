@@ -5,14 +5,30 @@ export class CreateEmaCrossHistoryDto {
   cross: 'up' | 'down';
 
   @IsBoolean()
+  isTrading: boolean;
+
+  @IsBoolean()
   isActiveExecuteTrade: boolean;
+
+  @IsBoolean()
+  isWaitingForCompletion: boolean
+
+  @IsString()
+  tradeRate: number
 
   @IsString()
   time: string;
 
-  @IsString()
-  moneyFoldingOne: string | number;
+  @IsNumber()
+  totalAmount: number
+
+  @IsNumber()
+  moneyfodingOne: number;
 
   @IsNumber()
   foldingCurrent: number;
+
+  @IsNumber()
+  largestMoney: number
+
 }

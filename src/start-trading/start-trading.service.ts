@@ -1,60 +1,55 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
+import { StartTrading } from './schemas/start-trading..schema';
 
 @Injectable()
 export class startTradingService {
 
-  constructor(private readonly handleFoldingService: handleFoldingService) { }
-
-
-  private isTrading: boolean = false;
-  private foldingCurrent: number = 1;
-  private largestMoneyState: string = "0";
-  private totalAmount: number = 0;  // largestMoney + foldingCurrent
-  private moneyfodingOne: number = 0;
-  private isActiveExecuteTrade: boolean = false;
-  private isWaitingForCompletion: boolean = false;
-  private tradeRate: string = "0";
+  constructor(private readonly handleFoldingService: handleFoldingService,
+    @InjectModel(StartTrading.name) private StartTradingModel: Model<StartTrading>
+  ) { }
 
   async startTrading(payload) {
     const { tradeRate, largestMoney } = payload;
-    const moneyforTrade = (Number(largestMoney) / 100) * Number(tradeRate) || 0;
-    const moneyfodingOneCst = this.handleFoldingService.handleFodingToMoney(moneyforTrade, 1);
-
-    this.isTrading = true;
-    this.totalAmount = moneyforTrade  // Tổng tiền của 1 con Gà
-    this.largestMoneyState = largestMoney; // số tiền lớn nhất
-    this.moneyfodingOne = moneyfodingOneCst;
-    this.tradeRate = tradeRate;
-    return {
+    const totalAmount = (Number(largestMoney) / 100) * Number(tradeRate) || 0;
+    const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, 1);
+    const newRespon = {
       statusCode: HttpStatus.BAD_REQUEST,
       message: 'ok',
-      isTrading: this.isTrading,
+      isTrading: true,
       foldingCurrent: 1,
-      largestMoney: this.largestMoneyState,
-      totalAmount: this.totalAmount,
-      moneyfodingOne: this.moneyfodingOne,
-      isActiveExecuteTrade: this.isActiveExecuteTrade,
-      isWaitingForCompletion: this.isWaitingForCompletion,
-      tradeRate: this.tradeRate,
-    };
+      largestMoney: largestMoney,
+      totalAmount: totalAmount,
+      moneyfodingOne: moneyfodingOne,
+      isActiveExecuteTrade: true,
+      isWaitingForCompletion: false,
+      tradeRate: tradeRate,
+    }
+    const createdStartTrading = new this.StartTradingModel(newRespon);
+    const result = await createdStartTrading.save();
+    return result
+  }
+
+  async getStartTradingData() {
+    try {
+      const data = await this.StartTradingModel.find().exec();
+      return {
+        statusCode: data ? HttpStatus.OK : HttpStatus.NOT_FOUND,
+        message: data ? 'Successfully fetched start trading data' : "No start trading data found",
+        data: data,
+      };
+    } catch (error) {
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Error while fetching start trading data',
+        error: error.message,
+      };
+    }
   }
 
   stopTrading() {
-    this.isTrading = false;
     return { message: 'Giao dịch đã dừng' };
-  }
-
-  getStatusTrading() {
-    return {
-      isTrading: this.isTrading,
-      foldingCurrent: this.foldingCurrent,
-      largestMoney : this.largestMoneyState,
-      totalAmount: this.totalAmount,
-      moneyfodingOne: this.moneyfodingOne,
-      isActiveExecuteTrade : this.isActiveExecuteTrade,
-      isWaitingForCompletion: this.isWaitingForCompletion,
-      tradeRate: this.tradeRate,
-    };
   }
 }

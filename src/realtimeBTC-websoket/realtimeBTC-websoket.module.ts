@@ -7,10 +7,11 @@ import { TimeModule } from 'src/common/until/time/time.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EmaCrossHistory, EmaCrossHistoryschema, } from './schemas/realtimeBTC-websoket.schema';
 import { emaCrossHistoryController } from './realtimeBTC-websoket.controller';
+import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
 
 @Module({
   imports: [CandleModule, TimeModule, MongooseModule.forFeature([{ name: EmaCrossHistory.name, schema: EmaCrossHistoryschema }])],
   controllers: [emaCrossHistoryController],
-  providers: [realtimeBTCWebsoketGateway, realtimeBTCWebsoketService],
+  providers: [realtimeBTCWebsoketGateway, realtimeBTCWebsoketService,handleFoldingService],
 })
 export class realtimeBTCWebsoketModule { }
