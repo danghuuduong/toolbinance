@@ -8,15 +8,31 @@ import { Model } from 'mongoose';
 import { CreateEmaCrossHistoryDto } from './dto/create-ema-cross-history.dto';
 import { startTradingService } from 'src/start-trading/start-trading.service';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
+import * as ccxt from 'ccxt';
 
 @Injectable()
 export class realtimeBTCWebsoketService {
+  private exchange: ccxt.binance;
+
   constructor(
     private readonly candleService: CandleService,
     private readonly startTradingService: startTradingService,
     private readonly handleFoldingService: handleFoldingService,
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
-  ) { }
+  ) {
+    this.exchange = new ccxt.binance({
+      apiKey:
+        'fe3a0df4e1158de142af6a1f75cdb61771f05a21c7e13d7000f6340a65ba1440',
+      secret:
+        '77068e56cc0f1c8a7ed58ae2962cc35c896e1c80c7832d6ad0fc7407f850d6fe',
+      enableRateLimit: true,
+      options: {
+        defaultType: 'future', // Chỉ làm việc với Futures
+      },
+    }); // Sử dụng Binance để lấy dữ liệu
+  }
+
+
 
   private pricesCandleCloseList: number[] = [];
   private emaStatus: { status: string; time: string } = {
@@ -159,14 +175,63 @@ export class realtimeBTCWebsoketService {
 
       const totalAmount = (Number(result?.largestMoney) / 100) * Number(result?.tradeRate) || 0;
       const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, result?.foldingCurrent);
-      if (crossOverResult === "up") { //mua
-        // + Viết tiếp hàm tính toán với 1000 giá BTC . làm sao chốt TP và SP đủ 32$
+      if (crossOverResult === "up") { // Mua (Long)
+        // Tính toán số lượng BTC cần mua để đạt lợi nhuận 3$ khi giá tăng 1000$
+        const currentPrice = 91000; // Giá hiện tại
+        const takeProfitPrice = currentPrice + 1000; // Giá TP khi giá tăng 1000$
+        const stopLossPrice = currentPrice - 1000; // Giá SL khi giá giảm 1000$
+        const symbol = 'BTC/USDT'; // Cặp giao dịch
+        const amount = 3 / (1000 * 10); // Số lượng BTC cần mua
 
-      } else { //bán
-        // + Viết tiếp hàm tính toán với 1000 giá BTC . làm sao chốt TP và SP đủ 32$
+        // Đặt đòn bẩy x10
+        await this.exchange.setLeverage(10, symbol);
+
+        // Tạo lệnh Long (Mua)
+        const order = await this.exchange.createOrder(symbol, 'market', 'buy', amount);
+
+        // In thông tin lệnh đã đặt (nếu cần)
+        console.log("Lệnh Long đã được đặt:", order);
+
+        // Đặt lệnh Take Profit (Chốt lời)
+        const tpOrder = await this.exchange.createOrder(symbol, 'takeProfit', 'sell', amount, takeProfitPrice);
+        console.log("Lệnh Take Profit đã được đặt:", tpOrder);
+
+        // Đặt lệnh Stop Loss (Chốt lỗ)
+        const slOrder = await this.exchange.createOrder(symbol, 'stopLoss', 'sell', amount, stopLossPrice);
+        console.log("Lệnh Stop Loss đã được đặt:", slOrder);
+
+      } else { // Bán (Short)
+        // Tính toán số lượng BTC cần bán để đạt lợi nhuận 3$ khi giá giảm 1000$
+        const currentPrice = 91000; // Giá hiện tại
+        const takeProfitPrice = currentPrice - 1000; // Giá TP khi giá giảm 1000$
+        const stopLossPrice = currentPrice + 1000; // Giá SL khi giá tăng 1000$
+        const symbol = 'BTC/USDT'; // Cặp giao dịch
+        const amount = 3 / (1000 * 10); // Số lượng BTC cần bán
+
+        // Đặt đòn bẩy x10
+        await this.exchange.setLeverage(10, symbol);
+
+        // Tạo lệnh Short (Bán)
+        const order = await this.exchange.createOrder(symbol, 'market', 'sell', amount);
+
+        // In thông tin lệnh đã đặt (nếu cần)
+        console.log("Lệnh Short đã được đặt:", order);
+
+        // Đặt lệnh Take Profit (Chốt lời)
+        const tpOrder = await this.exchange.createOrder(symbol, 'takeProfit', 'buy', amount, takeProfitPrice);
+        console.log("Lệnh Take Profit đã được đặt:", tpOrder);
+
+        // Đặt lệnh Stop Loss (Chốt lỗ)
+        const slOrder = await this.exchange.createOrder(symbol, 'stopLoss', 'buy', amount, stopLossPrice);
+        console.log("Lệnh Stop Loss đã được đặt:", slOrder);
       }
 
       //  2.update isActiveExecuteTrade = true
     }
+  }
+  // -------------------------------------------------------------------------
+  async getCurrentBTCPrice(): Promise<number> {
+    const ticker = await this.exchange.fetchTicker('BTC/USDT');
+    return ticker.last;
   }
 }
