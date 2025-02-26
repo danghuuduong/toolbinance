@@ -69,7 +69,7 @@ export class realtimeBTCWebsoketGateway
   @SubscribeMessage('changeTimeInterval')
   handleTimeIntervalChange(client: Socket, interval: string) {
     if (this.binanceWs) {
-      this.binanceWs.close(); 
+      this.binanceWs.close();
     }
   }
 
@@ -79,9 +79,9 @@ export class realtimeBTCWebsoketGateway
     const candlestick = data.k;
     const isCandleClose = candlestick.x;
 
-    const timeBinance =  this.timeService.formatTimestampToDatetime(data.E)
-    isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance);
-    
+    const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
+    isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
+
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
       openPrice: candlestick.o,

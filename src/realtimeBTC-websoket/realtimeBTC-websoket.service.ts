@@ -40,7 +40,7 @@ export class realtimeBTCWebsoketService {
     time: '',
   };
 
-  async mainTrading(timeBinance: string) {
+  async mainTrading(timeBinance: string, currentPrice) {
 
     try { const candleList = await this.callApiGetCandle(); this.pricesCandleCloseList = candleList.map((value) => value.close); }
     catch (error) { console.error('Error get Api 60 record faild', error); }
@@ -84,7 +84,7 @@ export class realtimeBTCWebsoketService {
       this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
       //  -------------------------------------------------------------------------------------------------------
       // 2. Thực hiện giao dịch
-      this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
+      this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, currentPrice)
     }
 
 
@@ -170,61 +170,25 @@ export class realtimeBTCWebsoketService {
     await created.save();
   }
 
-  async handleStartExecuteTrade(crossOverResult, result, timeBinance) {
+  async handleStartExecuteTrade(crossOverResult, result, timeBinance, currentPrice) {
     if (!result?.isActiveExecuteTradeApi && result?.isTrading) {
+      const LS = crossOverResult === "up" ? "buy" : "sell"
+      const takeProfitPrice = currentPrice + (crossOverResult === "up" ? 1000 : -1000);
+      const stopLossPrice = currentPrice + (crossOverResult === "up" ? -1000 : 1000);
+      const symbol = 'BTC/USDT'; 
 
-      const totalAmount = (Number(result?.largestMoney) / 100) * Number(result?.tradeRate) || 0;
-      const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, result?.foldingCurrent);
-      if (crossOverResult === "up") { // Mua (Long)
-        // Tính toán số lượng BTC cần mua để đạt lợi nhuận 3$ khi giá tăng 1000$
-        const currentPrice = 91000; // Giá hiện tại
-        const takeProfitPrice = currentPrice + 1000; // Giá TP khi giá tăng 1000$
-        const stopLossPrice = currentPrice - 1000; // Giá SL khi giá giảm 1000$
-        const symbol = 'BTC/USDT'; // Cặp giao dịch
-        const amount = 3 / (1000 * 10); // Số lượng BTC cần mua
+      // Số lượng BTC cần mua
+      const amount = result?.moneyfodingOne / (1000 * 10); 
+      await this.exchange.setLeverage(10, symbol);
 
-        // Đặt đòn bẩy x10
-        await this.exchange.setLeverage(10, symbol);
+      const order = await this.exchange.createOrder(symbol, 'market', LS , amount);
+      console.log("Lệnh Long đã được đặt:", order);
 
-        // Tạo lệnh Long (Mua)
-        const order = await this.exchange.createOrder(symbol, 'market', 'buy', amount);
+      const TP = await this.exchange.createOrder(symbol, 'takeProfit', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice);
+      console.log("Lệnh Take Profit đã được đặt:", TP);
 
-        // In thông tin lệnh đã đặt (nếu cần)
-        console.log("Lệnh Long đã được đặt:", order);
-
-        // Đặt lệnh Take Profit (Chốt lời)
-        const tpOrder = await this.exchange.createOrder(symbol, 'takeProfit', 'sell', amount, takeProfitPrice);
-        console.log("Lệnh Take Profit đã được đặt:", tpOrder);
-
-        // Đặt lệnh Stop Loss (Chốt lỗ)
-        const slOrder = await this.exchange.createOrder(symbol, 'stopLoss', 'sell', amount, stopLossPrice);
-        console.log("Lệnh Stop Loss đã được đặt:", slOrder);
-
-      } else { // Bán (Short)
-        // Tính toán số lượng BTC cần bán để đạt lợi nhuận 3$ khi giá giảm 1000$
-        const currentPrice = 91000; // Giá hiện tại
-        const takeProfitPrice = currentPrice - 1000; // Giá TP khi giá giảm 1000$
-        const stopLossPrice = currentPrice + 1000; // Giá SL khi giá tăng 1000$
-        const symbol = 'BTC/USDT'; // Cặp giao dịch
-        const amount = 3 / (1000 * 10); // Số lượng BTC cần bán
-
-        // Đặt đòn bẩy x10
-        await this.exchange.setLeverage(10, symbol);
-
-        // Tạo lệnh Short (Bán)
-        const order = await this.exchange.createOrder(symbol, 'market', 'sell', amount);
-
-        // In thông tin lệnh đã đặt (nếu cần)
-        console.log("Lệnh Short đã được đặt:", order);
-
-        // Đặt lệnh Take Profit (Chốt lời)
-        const tpOrder = await this.exchange.createOrder(symbol, 'takeProfit', 'buy', amount, takeProfitPrice);
-        console.log("Lệnh Take Profit đã được đặt:", tpOrder);
-
-        // Đặt lệnh Stop Loss (Chốt lỗ)
-        const slOrder = await this.exchange.createOrder(symbol, 'stopLoss', 'buy', amount, stopLossPrice);
-        console.log("Lệnh Stop Loss đã được đặt:", slOrder);
-      }
+      const SL = await this.exchange.createOrder(symbol, 'stopLoss', crossOverResult === "up" ? "sell" : "buy", amount, stopLossPrice);
+      console.log("Lệnh Stop Loss đã được đặt:", SL);
 
       //  2.update isActiveExecuteTrade = true
     }
