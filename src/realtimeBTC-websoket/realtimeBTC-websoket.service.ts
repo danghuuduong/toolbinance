@@ -27,9 +27,10 @@ export class realtimeBTCWebsoketService {
         '77068e56cc0f1c8a7ed58ae2962cc35c896e1c80c7832d6ad0fc7407f850d6fe',
       enableRateLimit: true,
       options: {
-        defaultType: 'future', // Chỉ làm việc với Futures
+        defaultType: 'future',
       },
-    }); // Sử dụng Binance để lấy dữ liệu
+    });
+    this.exchange.setSandboxMode(true);
   }
 
 
@@ -50,47 +51,40 @@ export class realtimeBTCWebsoketService {
     this.emaStatus = { status: crossOverResult, time: crossOverResult !== 'no' ? timeBinance : 'null', };
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
+    // this.checkOpenOrders('BTC/USDT')
+    // if (resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading) {  //nếu mà Đã vào tiền
+    //   console.log("3")
 
-    // if (resultSttatusTrading?.isActiveExecuteTrade) {  //nếu mà Đã vào tiền
-    //   if ("xong rồi") {
+    //   // if ("xong rồi") {
 
-    //     // a Update lại API (Lịch sử Chơi)
-    //     // b. Post Api isActiveExecuteTradeApi = false
+    //   //   // a Update lại API (Lịch sử Chơi)
+    //   //   // b. Post Api isActiveExecuteTradeApi = false
 
-    //     if ("Ăn") {
-    //       // 1. foldingCurrent = 1
-    //       // 3/ totalAmount = 1400.
-    //       if (isWaiingTRading) {
-    //         //Cho phép dừng
-    //       }
-    //     } else ("Thua"){
-    //       {
-    //         const isFoldingbyMax = "folding" === 5
+    //   //   if ("Ăn") {
+    //   //     // 1. foldingCurrent = 1
+    //   //     // 3/ totalAmount = 1400.
+    //   //     if (isWaiingTRading) {
+    //   //       //Cho phép dừng
+    //   //     }
+    //   //   } else ("Thua"){
+    //   //     {
+    //   //       const isFoldingbyMax = "folding" === 5
 
-    //         // 1. foldingCurrent = isFoldingbyMax ? (Trực tiếp bằng  1) : (foldingCurrent + 1)
-    //         // 2/ totalAmount = 1400
-    //         if (isWaiingTRading && isFoldingbyMax) {
-    //           //Cho phép dừng
-    //         }
-    //       }
-    //     }
-    //   }
+    //   //       // 1. foldingCurrent = isFoldingbyMax ? (Trực tiếp bằng  1) : (foldingCurrent + 1)
+    //   //       // 2/ totalAmount = 1400
+    //   //       if (isWaiingTRading && isFoldingbyMax) {
+    //   //         //Cho phép dừng
+    //   //       }
+    //   //     }
+    //   //   }
+    //   // }
     // }
+    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
 
-    if (crossOverResult !== 'no') {
-      const { data } = await this.startTradingService.getStartTradingData();
-      const resultSttatusTrading = data?.[0]
-      // 1. Thực hiện EmaCrossHistorySave
-      this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
-      //  -------------------------------------------------------------------------------------------------------
-      // 2. Thực hiện giao dịch
-      this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, currentPrice)
-    }
-
-
-
-
-
+    // if (crossOverResult !== 'no') {
+    //   this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
+    //   this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, currentPrice)
+    // }
     return
   }
 
@@ -170,29 +164,80 @@ export class realtimeBTCWebsoketService {
     await created.save();
   }
 
-  async handleStartExecuteTrade(crossOverResult, result, timeBinance, currentPrice) {
+  async handleStartExecuteTrade(crossOverResult, result, timeBinance) {
     if (!result?.isActiveExecuteTradeApi && result?.isTrading) {
-      const LS = crossOverResult === "up" ? "buy" : "sell"
-      const takeProfitPrice = currentPrice + (crossOverResult === "up" ? 1000 : -1000);
-      const stopLossPrice = currentPrice + (crossOverResult === "up" ? -1000 : 1000);
-      const symbol = 'BTC/USDT'; 
+
+      const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(result.totalAmount, result.foldingCurrent);
+      const LS = crossOverResult === "up" ? "buy" : "sell";
+
+      const symbol = 'BTC/USDT';
 
       // Số lượng BTC cần mua
-      const amount = result?.moneyfodingOne / (1000 * 10); 
+      const amount = moneyfodingOne / (1000 * 10);
       await this.exchange.setLeverage(10, symbol);
 
-      const order = await this.exchange.createOrder(symbol, 'market', LS , amount);
-      console.log("Lệnh Long đã được đặt:", order);
+      // Create a market order
+      const order = await this.exchange.createOrder(symbol, 'market', LS, amount);
+      console.log("vaio lenh", LS, order?.info?.avgPrice);
 
-      const TP = await this.exchange.createOrder(symbol, 'takeProfit', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice);
-      console.log("Lệnh Take Profit đã được đặt:", TP);
+      if (order) {
+        const currentPrice = parseFloat(order?.info?.avgPrice);
+        const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
+        const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 1100 : currentPrice + 1000}`);
+        console.log("takeProfitPrice", takeProfitPrice);
+        console.log("stopLossPrice", stopLossPrice);
 
-      const SL = await this.exchange.createOrder(symbol, 'stopLoss', crossOverResult === "up" ? "sell" : "buy", amount, stopLossPrice);
-      console.log("Lệnh Stop Loss đã được đặt:", SL);
 
-      //  2.update isActiveExecuteTrade = true
+        const stopLossOrder = await this.exchange.createOrder(symbol, 'limit', LS, amount, stopLossPrice, {
+          stopPrice: stopLossPrice,  // Adjust according to exchange API for stop loss
+        });
+
+        console.log("stopLossOrder", stopLossOrder);
+
+        const takeProfitOrder = await this.exchange.createOrder(symbol, 'limit', LS, amount, takeProfitPrice, {
+          stopPrice: takeProfitPrice,  // Adjust according to exchange API for take profit
+        });
+        console.log("takeProfitOrder", takeProfitOrder);
+
+
+
+      }
+
+      // result?._id && this.startTradingService.updateTrading(result._id, { isActiveExecuteTrade: true });
     }
   }
+
+  async checkOpenOrders(symbol: string) {
+    try {
+      // Lấy danh sách các lệnh đang mở cho cặp giao dịch cụ thể
+      const openOrders = await this.exchange.fetchOpenOrders(symbol);
+
+      // Sử dụng thời gian từ server để tính toán timestamp chính xác
+      // Kiểm tra nếu không có lệnh nào đang mở
+      if (openOrders.length === 0) {
+        console.log('Không có lệnh nào đang mở');
+      } else {
+        console.log('Danh sách các lệnh đang mở:', openOrders);
+        // openOrders.forEach(order => {
+        //   console.log("Order ID:", order.id);
+        //   console.log("Order Status:", order.status); // 'open', 'closed', 'canceled'
+        //   console.log("Order Filled:", order.filled); // Số lượng đã khớp
+        //   console.log("Order Remaining:", order.remaining); // Số lượng còn lại
+        //   console.log("Order Price:", order.price); // Giá
+        //   console.log("Order Side:", order.side); // 'buy' hoặc 'sell'
+        //   console.log("Order Type:", order.type); // 'market', 'limit', 'stop', v.v.
+        //   console.log("-----------------------------------");
+        // });
+      }
+
+      return openOrders; // Trả về danh sách các lệnh đang mở
+    } catch (error) {
+      console.error('Failed to fetch open orders:', error);
+      throw error;
+    }
+  }
+
+
   // -------------------------------------------------------------------------
   async getCurrentBTCPrice(): Promise<number> {
     const ticker = await this.exchange.fetchTicker('BTC/USDT');

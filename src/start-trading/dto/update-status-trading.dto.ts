@@ -4,6 +4,7 @@ export class UpdateStartTradingDto {
     @IsOptional()
     @IsBoolean()
     isActiveExecuteTrade?: boolean; 
+    
     @IsOptional()
     @IsBoolean()
     isTrading?: boolean;
@@ -23,10 +24,6 @@ export class UpdateStartTradingDto {
     @IsOptional()
     @IsNumber()
     totalAmount?: number;
-
-    @IsOptional()
-    @IsNumber()
-    moneyfodingOne?: number;
 
     @IsOptional()
     @IsNumber()
