@@ -15,6 +15,7 @@ export class startTradingService {
   async startTrading(payload) {
     const { tradeRate, largestMoney } = payload;
     const totalAmount = (Number(largestMoney) / 100) * Number(tradeRate) || 0;
+    const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, 1);
     const newRespon = {
       statusCode: HttpStatus.OK,
       message: 'ok',
@@ -22,6 +23,7 @@ export class startTradingService {
       foldingCurrent: 1,
       largestMoney: largestMoney,
       totalAmount: totalAmount,
+      moneyfodingOne: moneyfodingOne,
       isActiveExecuteTrade: false,
       isWaitingForCompletion: false,
       tradeRate: tradeRate,
@@ -32,7 +34,8 @@ export class startTradingService {
   }
 
   async updateTrading(id: string, updateDto: UpdateStartTradingDto) {
-    // Kiểm tra xem id có hợp lệ hay không
+    console.log("id", id, updateDto);
+
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid ID.');
     }
@@ -43,10 +46,11 @@ export class startTradingService {
     }
 
     try {
+      // Cập nhật chỉ trường isActiveExecuteTrade
       const updatedStartTrading = await this.startTradingModel.findByIdAndUpdate(
         id,
-        { isActiveExecuteTrade: updateDto.isActiveExecuteTrade }, 
-        { new: true } 
+        { isActiveExecuteTrade: updateDto.isActiveExecuteTrade }, // Chỉ cập nhật trường này
+        { new: true } // Trả về bản ghi đã được cập nhật
       );
 
       if (!updatedStartTrading) {

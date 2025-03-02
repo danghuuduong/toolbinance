@@ -9,6 +9,7 @@ import { UsersModule } from './my-infomation-users-from-app/users.module';
 import { MyInfomationModule } from './my-infomation-from-binance/my-infomation.module';
 import { AmountModule } from './money-history-changes/amount.module';
 import { realtimeBTCWebsoketModule } from './realtimeBTC-websoket/realtimeBTC-websoket.module';
+import { OrderHistoryModule } from './orderHistory/orderHistory.module';
 
 @Module({
   imports: [
@@ -26,14 +27,12 @@ import { realtimeBTCWebsoketModule } from './realtimeBTC-websoket/realtimeBTC-we
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-
     UsersModule,
-
     MyInfomationModule,
-
     AmountModule,
+    OrderHistoryModule
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

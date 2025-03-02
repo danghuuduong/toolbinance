@@ -58,7 +58,7 @@ export class realtimeBTCWebsoketService {
     //   // if ("xong rồi") {
 
     //   //   // a Update lại API (Lịch sử Chơi)
-    //   //   // b. Post Api isActiveExecuteTradeApi = false
+    //   //   // b. Post Api isActiveExecuteTrade = false
 
     //   //   if ("Ăn") {
     //   //     // 1. foldingCurrent = 1
@@ -79,7 +79,8 @@ export class realtimeBTCWebsoketService {
     //   //   }
     //   // }
     // }
-    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
+    this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
+    console.log("resultSttatusTrading", resultSttatusTrading);
 
     // if (crossOverResult !== 'no') {
     //   this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
@@ -165,7 +166,7 @@ export class realtimeBTCWebsoketService {
   }
 
   async handleStartExecuteTrade(crossOverResult, result, timeBinance) {
-    if (!result?.isActiveExecuteTradeApi && result?.isTrading) {
+    if (result?.isActiveExecuteTrade === false && result?.isTrading) {
 
       const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(result.totalAmount, result.foldingCurrent);
       const LS = crossOverResult === "up" ? "buy" : "sell";
@@ -178,32 +179,41 @@ export class realtimeBTCWebsoketService {
 
       // Create a market order
       const order = await this.exchange.createOrder(symbol, 'market', LS, amount);
-      console.log("vaio lenh", LS, order?.info?.avgPrice);
+      // resultSttatusTrading {
+      //   _id: new ObjectId('67bbf390306dfb66a4ba435e'),
+      //   isTrading: true,
+      //   foldingCurrent: 1,
+      //   largestMoney: 14638.32735398,
+      //   totalAmount: 4391.498206194,
+      //   moneyfodingOne: 96.612960536268,
+      //   isActiveExecuteTrade: false,
+      //   isWaitingForCompletion: false,
+      //   tradeRate: 30,
+      //   __v: 0
+      // }
+      // 14426
 
+      // Khối lượng muốn : 96.612960536268
+      // kích thước : 756.60 USDT
+      // phí 0.30278699 / 756.60 USDT * 100 = 0.04%p
+      // 
       if (order) {
         const currentPrice = parseFloat(order?.info?.avgPrice);
         const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
-        const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 1100 : currentPrice + 1000}`);
-        console.log("takeProfitPrice", takeProfitPrice);
-        console.log("stopLossPrice", stopLossPrice);
-
-
-        const stopLossOrder = await this.exchange.createOrder(symbol, 'limit', LS, amount, stopLossPrice, {
-          stopPrice: stopLossPrice,  // Adjust according to exchange API for stop loss
+        const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 1000 : currentPrice + 1000}`);
+        const stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, stopLossPrice, {
+          stopLossPrice: stopLossPrice,  // Adjust according to exchange API for stop loss
+          reduceOnly: true,
         });
-
-        console.log("stopLossOrder", stopLossOrder);
-
-        const takeProfitOrder = await this.exchange.createOrder(symbol, 'limit', LS, amount, takeProfitPrice, {
-          stopPrice: takeProfitPrice,  // Adjust according to exchange API for take profit
+        const takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice, {
+          takeProfitPrice: takeProfitPrice,  // Adjust according to exchange API for take profit
+          reduceOnly: true,
         });
-        console.log("takeProfitOrder", takeProfitOrder);
-
-
-
+        if (stopLossOrder?.info?.orderId && takeProfitOrder?.info?.orderId) {
+          result?._id && this.startTradingService.updateTrading(result._id.toString(), { isActiveExecuteTrade: true });
+        }
       }
 
-      // result?._id && this.startTradingService.updateTrading(result._id, { isActiveExecuteTrade: true });
     }
   }
 
