@@ -23,11 +23,13 @@ export class OrderHistoryService {
       this.exchange.setSandboxMode(true);
 
       const now = this.exchange.milliseconds();
-      const since = now - 24 * 60 * 60 * 1000; 
-      const orders = await this.exchange.fetchOrders(symbol, since);
-      const reversedOrders = orders.reverse();
+      const since = now - 24 * 60 * 60 * 1000;
+      const trades = await this.exchange.fetchMyTrades(symbol, since); 
+      const reversedtrades = trades.reverse();
 
-      return reversedOrders;
+      return {
+        reversedtrades
+      };
     } catch (error) {
       throw new Error(`Error fetching order history: ${error.message}`);
     }
