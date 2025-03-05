@@ -33,8 +33,6 @@ export class realtimeBTCWebsoketService {
     this.exchange.setSandboxMode(true);
   }
 
-
-
   private pricesCandleCloseList: number[] = [];
   private emaStatus: { status: string; time: string } = {
     status: 'no',
@@ -51,40 +49,28 @@ export class realtimeBTCWebsoketService {
     this.emaStatus = { status: crossOverResult, time: crossOverResult !== 'no' ? timeBinance : 'null', };
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
-    this.checkOpenOrders('BTC/USDT')
+
+    this.checkOpenOrders('BTC/USDT', resultSttatusTrading)
+
     if (resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading) {  //nếu mà Đã vào tiền
+      // console.log("abc", abc.reversedtrades.slice(0, 3));
 
-      // if ("xong rồi") {
-
-      //   // a Update lại API (Lịch sử Chơi)
-      //   // b. Post Api isActiveExecuteTrade = false
-
-      //   if ("Ăn") {
-      //     // 1. foldingCurrent = 1
-      //     // 3/ totalAmount = 1400.
-      //     if (isWaiingTRading) {
-      //       //Cho phép dừng
-      //     }
-      //   } else ("Thua"){
-      //     {
-      //       const isFoldingbyMax = "folding" === 5
-
-      //       // 1. foldingCurrent = isFoldingbyMax ? (Trực tiếp bằng  1) : (foldingCurrent + 1)
-      //       // 2/ totalAmount = 1400
-      //       if (isWaiingTRading && isFoldingbyMax) {
-      //         //Cho phép dừng
-      //       }
-      //     }
-      //   }
+      // const isWin = true
+      // if (isWin) {
+      //   return
+      // } else {
+      //   return
       // }
-    }
-    this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
-    // console.log("resultSttatusTrading", resultSttatusTrading);
 
-    // if (crossOverResult !== 'no') {
-    //   this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
-    //   this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, currentPrice)
-    // }
+    }
+    // this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
+
+    if (crossOverResult !== 'no') {
+      //   this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
+      //   this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, currentPrice)
+      // this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
+
+    }
     return
   }
 
@@ -146,6 +132,8 @@ export class realtimeBTCWebsoketService {
 
   // -------------------------------------
 
+
+
   async handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance) {
     const newData: CreateEmaCrossHistoryDto = {
       cross: crossOverResult,
@@ -176,6 +164,7 @@ export class realtimeBTCWebsoketService {
       await this.exchange.setLeverage(10, symbol);
 
       const order = await this.exchange.createOrder(symbol, 'market', LS, amount);
+
       if (order) {
         const currentPrice = parseFloat(order?.info?.avgPrice);
         const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
@@ -189,40 +178,71 @@ export class realtimeBTCWebsoketService {
           reduceOnly: true,
         });
         if (stopLossOrder?.info?.orderId && takeProfitOrder?.info?.orderId) {
-          result?._id && this.startTradingService.updateTrading(result._id.toString(), { isActiveExecuteTrade: true });
+          const payload = {
+            isActiveExecuteTrade: true,
+            idOrderMain: order?.info?.orderId,
+            idStopLossOrder: stopLossOrder?.info?.orderId,
+            idTakeProfitOrder: takeProfitOrder?.info?.orderId,
+          }
+          result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
         }
       }
 
     }
   }
 
-  async checkOpenOrders(symbol: string) {
+  async checkOpenOrders(symbol: string, resultSttatusTrading) {
     try {
-      // Lấy danh sách các lệnh đang mở cho cặp giao dịch cụ thể
-      const openOrders = await this.exchange.fetchOpenOrders(symbol);
-     
-      // Sử dụng thời gian từ server để tính toán timestamp chính xác
-      // Kiểm tra nếu không có lệnh nào đang mở
-      if (openOrders.length === 0) {
-        console.log('Không có lệnh nào đang mở');
-      } else {
-        console.log('=============', openOrders?.length);
-        // console.log('Danh sách các lệnh đang mở:', openOrders);
-        // openOrders.forEach(order => {
-        //   console.log("Order ID:", order.id);
-        //   console.log("Order Status:", order.status); // 'open', 'closed', 'canceled'
-        //   console.log("Order Filled:", order.filled); // Số lượng đã khớp
-        //   console.log("Order Remaining:", order.remaining); // Số lượng còn lại
-        //   console.log("Order Price:", order.price); // Giá
-        //   console.log("Order Side:", order.side); // 'buy' hoặc 'sell'
-        //   console.log("Order Type:", order.type); // 'market', 'limit', 'stop', v.v.
-        //   console.log("-----------------------------------");
-        // });
-      }
 
-      return openOrders; // Trả về danh sách các lệnh đang mở
+      const openOrders = await this.exchange.fetchOpenOrders(symbol);
+
+      
+
+      // if (openOrders?.length === 0 && !checkPosition) {
+      //   resultSttatusTrading?._id && this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), { isActiveExecuteTrade: false });
+      // }
+
+      // if (openOrders?.length === 1) {
+      //   try {
+      //     const result = await this.exchange.cancelOrder(openOrders[0]?.id, symbol);
+      //     return result;
+      //   } catch (error) {
+      //     console.error('Error canceling order:', error);
+      //     throw error;
+      //   }
+      // }
+      // if (openOrders?.length === 2 && !checkPosition) {
+      //   try {
+      //     const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol);
+      //     const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol);
+      //     return { result, result2 };
+      //   } catch (error) {
+      //     console.error('Error canceling order:', error);
+      //     throw error;
+      //   }
+      // }
+
+      return openOrders;
     } catch (error) {
       console.error('Failed to fetch open orders:', error);
+      throw error;
+    }
+  }
+
+
+  async checkPosition(symbol: string, oderLength, isActiveExecuteTrade) {
+    try {
+      const positions = await this.exchange.fetchPositions([symbol]);
+      const position = positions.find((p: any) => p.info.symbol === "BTCUSDT" && p.positionAmt !== '0');
+      if (oderLength === 0 && position && isActiveExecuteTrade) {
+        const side = position.side === "short" ? 'buy' : 'sell';
+        const closeAllPositions = await this.exchange.createMarketOrder(position.symbol, side, Math.abs(parseFloat(position.info.positionAmt)));
+        return closeAllPositions
+      }
+
+      return position ? true : false
+    } catch (error) {
+      console.error('Error checking position:', error);
       throw error;
     }
   }

@@ -28,4 +28,16 @@ export class UpdateStartTradingDto {
     @IsOptional()
     @IsNumber()
     foldingCurrent?: number;
+
+    @IsOptional()
+    @IsString()
+    idOrderMain?: string;
+
+    @IsOptional()
+    @IsString()
+    idStopLossOrder?: string;
+
+    @IsOptional()
+    @IsString()
+    idTakeProfitOrder?: string;
 }

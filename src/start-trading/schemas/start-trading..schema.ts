@@ -28,6 +28,15 @@ export class StartTrading {
 
   @Prop({ type: Number })
   tradeRate: number;
+
+  @Prop({ type: String })
+  idOrderMain: string;
+
+  @Prop({ type: String })
+  idStopLossOrder: string;
+
+  @Prop({ type: String })
+  idTakeProfitOrder: string;
 }
 
 export const StartTradingchema = SchemaFactory.createForClass(StartTrading);

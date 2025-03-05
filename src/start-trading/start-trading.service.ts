@@ -34,7 +34,6 @@ export class startTradingService {
   }
 
   async updateTrading(id: string, updateDto: UpdateStartTradingDto) {
-    console.log("id", id, updateDto);
 
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid ID.');
@@ -49,7 +48,12 @@ export class startTradingService {
       // Cập nhật chỉ trường isActiveExecuteTrade
       const updatedStartTrading = await this.startTradingModel.findByIdAndUpdate(
         id,
-        { isActiveExecuteTrade: updateDto.isActiveExecuteTrade }, // Chỉ cập nhật trường này
+        {
+          isActiveExecuteTrade: updateDto.isActiveExecuteTrade,
+          idOrderMain: updateDto.idOrderMain || "null",
+          idStopLossOrder: updateDto.idStopLossOrder || "null",
+          idTakeProfitOrder: updateDto.idTakeProfitOrder || "null"
+        }, // Chỉ cập nhật trường này
         { new: true } // Trả về bản ghi đã được cập nhật
       );
 
