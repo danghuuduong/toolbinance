@@ -8,10 +8,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { EmaCrossHistory, EmaCrossHistoryschema, } from './schemas/realtimeBTC-websoket.schema';
 import { emaCrossHistoryController } from './realtimeBTC-websoket.controller';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
+import { StatusTradingModule } from 'src/start-trading/start-trading.module';
+import { AmountModule } from 'src/money-history-changes/amount.module';
 
 @Module({
-  imports: [CandleModule, TimeModule, MongooseModule.forFeature([{ name: EmaCrossHistory.name, schema: EmaCrossHistoryschema }])],
+  imports: [CandleModule, TimeModule, StatusTradingModule, AmountModule, MongooseModule.forFeature([{ name: EmaCrossHistory.name, schema: EmaCrossHistoryschema }])],
   controllers: [emaCrossHistoryController],
-  providers: [realtimeBTCWebsoketGateway, realtimeBTCWebsoketService,handleFoldingService],
+  providers: [realtimeBTCWebsoketGateway, realtimeBTCWebsoketService, handleFoldingService],
 })
 export class realtimeBTCWebsoketModule { }

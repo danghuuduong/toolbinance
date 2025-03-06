@@ -7,7 +7,7 @@ import { UpdateAmountDto } from './dto/update-amount.dto';
 
 @Injectable()
 export class AmountService {
-  constructor(@InjectModel(Amount.name) private amountModel: Model<Amount>) {}
+  constructor(@InjectModel(Amount.name) private amountModel: Model<Amount>) { }
 
   async create(createAmountDto: CreateAmountDto) {
     const created = new this.amountModel(createAmountDto);
@@ -21,12 +21,24 @@ export class AmountService {
   }
 
   async update(id: string, updateAmountDto: UpdateAmountDto) {
+    const { history } = updateAmountDto;
+
     const existingAmount = await this.amountModel
-      .findByIdAndUpdate(id, updateAmountDto, { new: true })
+      .findByIdAndUpdate(
+        id,
+        {
+          $push: {
+            history: { $each: history },  
+          },
+        },
+        { new: true } 
+      )
       .exec();
+
     if (!existingAmount) {
       throw new NotFoundException(`Amount with ID ${id} not found`);
     }
+
     return existingAmount;
   }
 }

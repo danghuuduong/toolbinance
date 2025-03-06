@@ -7,9 +7,6 @@ export type AmountDocument = HydratedDocument<Amount>;
 export class Amount {
   @Prop({ type: [String] })
   history: string[];
-
-  @Prop({ type: String })
-  largest: string;
 }
 
 export const AmountSchema = SchemaFactory.createForClass(Amount);

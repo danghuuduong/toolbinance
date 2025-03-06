@@ -80,6 +80,8 @@ export class realtimeBTCWebsoketGateway
     const isCandleClose = candlestick.x;
 
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
+    console.log(timeBinance);
+
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
 
     const candlestickInfo = {
@@ -94,6 +96,9 @@ export class realtimeBTCWebsoketGateway
       statusTrading: true,
       emaCrossOverStatus: this.realtimeBTCWebsoketService.getEmaStatus(),
       timeBinance: timeBinance,
+      messenger: this.realtimeBTCWebsoketService.getMessenger(),
+      isWaitingForCompletionStatus: this.realtimeBTCWebsoketService.getIsWaitingForCompletionStatus(),
+      
     };
     this?.server?.emit('candleStick-RealTime', candlestickInfo);
   }

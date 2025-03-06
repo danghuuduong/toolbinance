@@ -13,13 +13,13 @@ export class startTradingService {
   ) { }
 
   async startTrading(payload) {
-    const { tradeRate, largestMoney } = payload;
+    const { tradeRate, largestMoney, isTrading } = payload;
     const totalAmount = (Number(largestMoney) / 100) * Number(tradeRate) || 0;
     const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, 1);
     const newRespon = {
       statusCode: HttpStatus.OK,
       message: 'ok',
-      isTrading: true,
+      isTrading: isTrading || false,
       foldingCurrent: 1,
       largestMoney: largestMoney,
       totalAmount: totalAmount,
@@ -34,26 +34,14 @@ export class startTradingService {
   }
 
   async updateTrading(id: string, updateDto: UpdateStartTradingDto) {
-
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid ID.');
     }
 
-    // Kiểm tra xem isActiveExecuteTrade có được cung cấp không
-    if (updateDto.isActiveExecuteTrade === undefined) {
-      throw new Error('isActiveExecuteTrade is required for update.');
-    }
-
     try {
-      // Cập nhật chỉ trường isActiveExecuteTrade
       const updatedStartTrading = await this.startTradingModel.findByIdAndUpdate(
         id,
-        {
-          isActiveExecuteTrade: updateDto.isActiveExecuteTrade,
-          idOrderMain: updateDto.idOrderMain || "null",
-          idStopLossOrder: updateDto.idStopLossOrder || "null",
-          idTakeProfitOrder: updateDto.idTakeProfitOrder || "null"
-        }, // Chỉ cập nhật trường này
+        { ...updateDto },
         { new: true } // Trả về bản ghi đã được cập nhật
       );
 
@@ -84,7 +72,15 @@ export class startTradingService {
     }
   }
 
-  stopTrading() {
-    return { message: 'Giao dịch đã dừng' };
+  async stopTrading() {
+    const { data } = await this.getStartTradingData();
+    const resultSttatusTrading = data?.[0]
+    resultSttatusTrading?._id && this.updateTrading(resultSttatusTrading._id.toString(), { isWaitingForCompletion: true, });
+    const newRespon = {
+      statusCode: HttpStatus.OK,
+      message: 'ok',
+    }
+
+    return newRespon;
   }
 }

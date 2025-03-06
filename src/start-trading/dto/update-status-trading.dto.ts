@@ -29,6 +29,11 @@ export class UpdateStartTradingDto {
     @IsNumber()
     foldingCurrent?: number;
 
+    
+    @IsOptional()
+    @IsNumber()
+    moneyfodingOne?: number;
+
     @IsOptional()
     @IsString()
     idOrderMain?: string;
@@ -40,4 +45,8 @@ export class UpdateStartTradingDto {
     @IsOptional()
     @IsString()
     idTakeProfitOrder?: string;
+
+    @IsOptional()
+    @IsString()
+    timeActiveExecuteTrade?: string;
 }

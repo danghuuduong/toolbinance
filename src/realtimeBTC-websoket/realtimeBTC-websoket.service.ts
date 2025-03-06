@@ -9,6 +9,8 @@ import { CreateEmaCrossHistoryDto } from './dto/create-ema-cross-history.dto';
 import { startTradingService } from 'src/start-trading/start-trading.service';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
 import * as ccxt from 'ccxt';
+import { MyInfomationService } from 'src/my-infomation-from-binance/my-infomation.service';
+import { AmountService } from 'src/money-history-changes/amount.service';
 
 @Injectable()
 export class realtimeBTCWebsoketService {
@@ -18,6 +20,9 @@ export class realtimeBTCWebsoketService {
     private readonly candleService: CandleService,
     private readonly startTradingService: startTradingService,
     private readonly handleFoldingService: handleFoldingService,
+    private readonly MyInfomationService: MyInfomationService,
+    private readonly AmountService: AmountService,
+
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
   ) {
     this.exchange = new ccxt.binance({
@@ -32,6 +37,8 @@ export class realtimeBTCWebsoketService {
     });
     this.exchange.setSandboxMode(true);
   }
+  private messenger: string = "null";
+  private isWaitingForCompletionStatus: boolean = false;
 
   private pricesCandleCloseList: number[] = [];
   private emaStatus: { status: string; time: string } = {
@@ -52,24 +59,11 @@ export class realtimeBTCWebsoketService {
 
     this.checkOpenOrders('BTC/USDT', resultSttatusTrading)
 
-    if (resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading) {  //nếu mà Đã vào tiền
-      // console.log("abc", abc.reversedtrades.slice(0, 3));
-
-      // const isWin = true
-      // if (isWin) {
-      //   return
-      // } else {
-      //   return
-      // }
-
-    }
-    // this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
+    this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
 
     if (crossOverResult !== 'no') {
-      //   this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
-      //   this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, currentPrice)
-      // this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
-
+      this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
+      // this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
     }
     return
   }
@@ -128,7 +122,6 @@ export class realtimeBTCWebsoketService {
       type: Timeframe.ONE_MINUTE,
     })
   }
-  getEmaStatus() { return this.emaStatus }
 
   // -------------------------------------
 
@@ -147,7 +140,6 @@ export class realtimeBTCWebsoketService {
       largestMoney: resultSttatusTrading?.largestMoney,
       time: timeBinance,
     };
-    console.log('nhảy newData', newData);
     const created = new this.EmaCrossHistoryModel(newData);
     await created.save();
   }
@@ -163,29 +155,40 @@ export class realtimeBTCWebsoketService {
       const amount = moneyfodingOne / (1000 * 10);
       await this.exchange.setLeverage(10, symbol);
 
-      const order = await this.exchange.createOrder(symbol, 'market', LS, amount);
 
-      if (order) {
-        const currentPrice = parseFloat(order?.info?.avgPrice);
-        const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
-        const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 1000 : currentPrice + 1000}`);
-        const stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, stopLossPrice, {
-          stopLossPrice: stopLossPrice,
-          reduceOnly: true,
-        });
-        const takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice, {
-          takeProfitPrice: takeProfitPrice,
-          reduceOnly: true,
-        });
-        if (stopLossOrder?.info?.orderId && takeProfitOrder?.info?.orderId) {
-          const payload = {
-            isActiveExecuteTrade: true,
-            idOrderMain: order?.info?.orderId,
-            idStopLossOrder: stopLossOrder?.info?.orderId,
-            idTakeProfitOrder: takeProfitOrder?.info?.orderId,
+      try {
+        const order = await this.exchange.createOrder(symbol, 'market', LS, amount);
+        if (order) {
+          const currentPrice = parseFloat(order?.info?.avgPrice);
+          const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
+          const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 1000 : currentPrice + 1000}`);
+          const stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, stopLossPrice, {
+            stopLossPrice: stopLossPrice,
+            reduceOnly: true,
+          });
+          const takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice, {
+            takeProfitPrice: takeProfitPrice,
+            reduceOnly: true,
+          });
+
+          if (stopLossOrder?.info?.orderId && takeProfitOrder?.info?.orderId) {
+            const payload = {
+              isActiveExecuteTrade: true,
+              idOrderMain: order?.info?.orderId,
+              idStopLossOrder: stopLossOrder?.info?.orderId,
+              idTakeProfitOrder: takeProfitOrder?.info?.orderId,
+              ActiveExecuteTrade: timeBinance
+            }
+            this.isWaitingForCompletionStatus = true
+            result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
           }
-          result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
         }
+
+
+      } catch (error) {
+        console.log("error ====", error.message);
+        this.messenger = error.message
+        return
       }
 
     }
@@ -196,31 +199,83 @@ export class realtimeBTCWebsoketService {
 
       const openOrders = await this.exchange.fetchOpenOrders(symbol);
 
-      
+      const checkPosition = await this.handleCheckPosition(symbol, openOrders.length, resultSttatusTrading?.isActiveExecuteTrade);
 
-      // if (openOrders?.length === 0 && !checkPosition) {
-      //   resultSttatusTrading?._id && this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), { isActiveExecuteTrade: false });
-      // }
+      const trade = await this.exchange.fetchMyTrades(symbol, undefined, 9);
 
-      // if (openOrders?.length === 1) {
-      //   try {
-      //     const result = await this.exchange.cancelOrder(openOrders[0]?.id, symbol);
-      //     return result;
-      //   } catch (error) {
-      //     console.error('Error canceling order:', error);
-      //     throw error;
-      //   }
-      // }
-      // if (openOrders?.length === 2 && !checkPosition) {
-      //   try {
-      //     const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol);
-      //     const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol);
-      //     return { result, result2 };
-      //   } catch (error) {
-      //     console.error('Error canceling order:', error);
-      //     throw error;
-      //   }
-      // }
+
+      if (!checkPosition && resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading) {
+
+        const mainPNL = trade.find((value => value.info.orderId === resultSttatusTrading.idOrderMain))
+        const stopLossPNL = trade.find((value => value.info.orderId === resultSttatusTrading.idStopLossOrder))
+        const takeProfitPNL = trade.find((value => value.info.orderId === resultSttatusTrading.idTakeProfitOrder))
+
+        const totalPnl = [mainPNL, stopLossPNL, takeProfitPNL].reduce((total, pnl) => total + (Number(pnl?.info?.realizedPnl) || 0), 0);
+        const isWin = totalPnl >= 0
+        this.isWaitingForCompletionStatus = false
+
+        const largestMoney = await this.MyInfomationService.getMyInfomation()
+        const idHistoryMoney = await this.AmountService.findAll()
+
+        this.AmountService.update(idHistoryMoney?.[0]?._id.toString(), {
+          history: [`${largestMoney.USDT.total}`]
+        })
+
+        if (isWin) {
+          const totalAmount = (Number(largestMoney.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
+
+          const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, resultSttatusTrading.foldingCurrent);
+          const payload = {
+            isActiveExecuteTrade: false,
+            foldingCurrent: 1,
+            idOrderMain: "null",
+            idStopLossOrder: "null",
+            idTakeProfitOrder: "null",
+            moneyfodingOne,
+            totalAmount,
+            largestMoney: `${largestMoney.USDT.total}`
+          }
+
+
+          this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), resultSttatusTrading.isWaiingTRading ? { ...payload, isTrading: false } : payload);
+        } else {
+          const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 5
+          const totalAmount = (Number(largestMoney.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
+          const moneyfodingOne = isFoldingbyMax ? 1 : (resultSttatusTrading.foldingCurrent + 1);
+
+          const payload = {
+            isActiveExecuteTrade: false,
+            foldingCurrent: isFoldingbyMax ? 1 : (resultSttatusTrading.foldingCurrent + 1),
+            totalAmount,
+            moneyfodingOne,
+            idOrderMain: "null",
+            idStopLossOrder: "null",
+            idTakeProfitOrder: "null"
+          }
+          this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), resultSttatusTrading.isWaiingTRading && isFoldingbyMax ? { ...payload, isTrading: false } : payload);
+        }
+      }
+
+      if (openOrders?.length === 1) {
+        try {
+          const result = await this.exchange.cancelOrder(openOrders[0]?.id, symbol);
+
+          return result;
+        } catch (error) {
+          console.error('Error canceling order:', error);
+          throw error;
+        }
+      }
+      if (openOrders?.length === 2 && !checkPosition) {
+        try {
+          const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol);
+          const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol);
+          return { result, result2 };
+        } catch (error) {
+          console.error('Error canceling order:', error);
+          throw error;
+        }
+      }
 
       return openOrders;
     } catch (error) {
@@ -230,9 +285,10 @@ export class realtimeBTCWebsoketService {
   }
 
 
-  async checkPosition(symbol: string, oderLength, isActiveExecuteTrade) {
+  async handleCheckPosition(symbol: string, oderLength, isActiveExecuteTrade) {
     try {
       const positions = await this.exchange.fetchPositions([symbol]);
+
       const position = positions.find((p: any) => p.info.symbol === "BTCUSDT" && p.positionAmt !== '0');
       if (oderLength === 0 && position && isActiveExecuteTrade) {
         const side = position.side === "short" ? 'buy' : 'sell';
@@ -247,10 +303,13 @@ export class realtimeBTCWebsoketService {
     }
   }
 
-
   // -------------------------------------------------------------------------
   async getCurrentBTCPrice(): Promise<number> {
     const ticker = await this.exchange.fetchTicker('BTC/USDT');
     return ticker.last;
   }
+
+  getEmaStatus() { return this.emaStatus }
+  getMessenger() { return this.messenger }
+  getIsWaitingForCompletionStatus() { return this.isWaitingForCompletionStatus }
 }

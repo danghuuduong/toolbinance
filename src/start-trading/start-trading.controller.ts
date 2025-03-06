@@ -29,4 +29,5 @@ export class StatusTradingController {
   ) {
     return this.startTradingService.updateTrading(id, updateDto);
   }
+  
 }
