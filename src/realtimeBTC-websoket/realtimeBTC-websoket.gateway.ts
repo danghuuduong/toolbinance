@@ -80,8 +80,6 @@ export class realtimeBTCWebsoketGateway
     const isCandleClose = candlestick.x;
 
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
-    console.log(timeBinance);
-
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
 
     const candlestickInfo = {
@@ -104,6 +102,6 @@ export class realtimeBTCWebsoketGateway
   }
 
 
-  handleConnection(client: Socket) { console.log('Client connected'); }
-  handleDisconnect(client: Socket) { console.log('Client disconnected'); }
+  handleConnection(client: Socket) {  }
+  handleDisconnect(client: Socket) {  }
 }
