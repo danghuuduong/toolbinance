@@ -26,7 +26,7 @@ export class realtimeBTCWebsoketGateway
   @WebSocketServer() server: Server;
 
   private binanceWs: WebSocket;
-  private currentInterval: string = '1m'; // Interval mặc định
+  private currentInterval: string = '15m'; // Interval mặc định
   private isTrading: boolean = false;
   private totalAmount: number = 0;
   private moneyfodingOne: number = 0;
@@ -81,7 +81,7 @@ export class realtimeBTCWebsoketGateway
 
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
-
+    
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
       openPrice: candlestick.o,
