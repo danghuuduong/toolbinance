@@ -62,7 +62,7 @@ export class realtimeBTCWebsoketService {
     const resultSttatusTrading = data?.[0]
 
     this.checkOpenOrders('BTC/USDT', resultSttatusTrading)
-
+    
     this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
 
     if (crossOverResult !== 'no') {
@@ -89,7 +89,6 @@ export class realtimeBTCWebsoketService {
     }
     return "no";
   }
-
 
   async getAllEmaCrossHistory(param: { page: number; limit: number }) {
     try {
@@ -127,8 +126,6 @@ export class realtimeBTCWebsoketService {
     })
   }
 
-  // -------------------------------------
-
   async handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance) {
     const newData: CreateEmaCrossHistoryDto = {
       cross: crossOverResult,
@@ -156,10 +153,6 @@ export class realtimeBTCWebsoketService {
 
       const amount = moneyfodingOne / 1000;
       await this.exchange.setLeverage(10, symbol);
-      console.log("moneyfodingOne", moneyfodingOne);
-      console.log("amount", amount);
-      console.log("result.totalAmount", result.totalAmount);
-      console.log("..foldingCurrent", result.foldingCurrent);
 
       try {
         const serverTime = await this.getServerTime();
@@ -173,26 +166,39 @@ export class realtimeBTCWebsoketService {
           const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
           const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 1000 : currentPrice + 1000}`);
 
-          const stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, stopLossPrice, {
-            stopLossPrice: stopLossPrice,
-            reduceOnly: true,
-            oco: true,
-            timestamp: serverTime,
-          });
-          const takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice, {
-            takeProfitPrice: takeProfitPrice,
-            reduceOnly: true,
-            oco: true,
-            timestamp: serverTime,
-          });
+          let stopLossOrder
+          try {
+            stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, stopLossPrice, {
+              stopLossPrice: stopLossPrice,
+              reduceOnly: true,
+              oco: true,
+              timestamp: serverTime,
+            });
+          } catch (error) {
+            console.log("Lỗi SL", error);
+          }
+
+
+          let takeProfitOrder
+          try {
+            takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice, {
+              takeProfitPrice: takeProfitPrice,
+              reduceOnly: true,
+              oco: true,
+              timestamp: serverTime,
+            });
+          } catch (error) {
+            console.log("Lỗi Tp", error);
+          }
+
 
           //--------------------------------------------------------------------------------------------------------------------
-          if (stopLossOrder?.info?.orderId && takeProfitOrder?.info?.orderId) {
+          if (order?.info?.orderId) {
             const payload = {
               isActiveExecuteTrade: true,
               idOrderMain: order?.info?.orderId,
-              idStopLossOrder: stopLossOrder?.info?.orderId,
-              idTakeProfitOrder: takeProfitOrder?.info?.orderId,
+              idStopLossOrder: stopLossOrder?.info?.orderId || "null",
+              idTakeProfitOrder: takeProfitOrder?.info?.orderId || "null",
               ActiveExecuteTrade: timeBinance
             }
             console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne);
@@ -200,7 +206,6 @@ export class realtimeBTCWebsoketService {
             result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
           }
         }
-
 
       } catch (error) {
         console.log("error ====", error.message);
@@ -213,13 +218,26 @@ export class realtimeBTCWebsoketService {
 
   async checkOpenOrders(symbol: string, resultSttatusTrading) {
     try {
+      let openOrders
+      try {
+        openOrders = await this.exchange.fetchOpenOrders(symbol);
+      } catch (error) {
+        console.log("Lỗi openOrders", error.message);
+      }
 
-      const openOrders = await this.exchange.fetchOpenOrders(symbol);
+      let checkPosition
+      try {
+        checkPosition = await this.handleCheckPosition(symbol, openOrders.length, resultSttatusTrading?.isActiveExecuteTrade);
+      } catch (error) {
+        console.log("Lỗi openOrders", error.message);
+      }
 
-      const checkPosition = await this.handleCheckPosition(symbol, openOrders.length, resultSttatusTrading?.isActiveExecuteTrade);
-
-      const trade = await this.exchange.fetchMyTrades(symbol, undefined, 9);
-
+      let trade
+      try {
+        trade = await this.exchange.fetchMyTrades(symbol, undefined, 9);
+      } catch (error) {
+        console.log("Lỗi openOrders", error.message);
+      }
 
       if (!checkPosition && resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading && openOrders.length === 0) {
 
@@ -230,12 +248,21 @@ export class realtimeBTCWebsoketService {
         const totalPnl = [mainPNL, stopLossPNL, takeProfitPNL].reduce((total, pnl) => total + (Number(pnl?.info?.realizedPnl) || 0), 0);
         const isWin = totalPnl >= 0
 
-        const sodu = await this.MyInfomationService.getMyInfomation()
-        const idHistoryMoney = await this.AmountService.findAll()
+        let sodu
+        try {
+          sodu = await this.MyInfomationService.getMyInfomation()
+        } catch (error) {
+          console.log("Lỗi openOrders", error.message);
+        }
 
-        this.AmountService.update(idHistoryMoney?.[0]?._id.toString(), {
-          history: [`${sodu.USDT.total}`]
-        })
+        try {
+          const idHistoryMoney = await this.AmountService.findAll()
+          this.AmountService.update(idHistoryMoney?.[0]?._id.toString(), {
+            history: [`${sodu.USDT.total}`]
+          })
+        } catch (error) {
+          console.log("Lỗi openOrders", error.message);
+        }
 
         if (isWin) {
           const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
@@ -253,9 +280,7 @@ export class realtimeBTCWebsoketService {
             ...sodu.USDT.total > resultSttatusTrading.largestMoney && { largestMoney: `${sodu.USDT.total}` },
             ...resultSttatusTrading.isWaitingForCompletion && { isTrading: false, isWaitingForCompletion: false }
           }
-          if (resultSttatusTrading.isWaitingForCompletion) {
-            console.log("đã stop");
-          }
+          resultSttatusTrading.isWaitingForCompletion && console.log("đã stop");
           this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), payload);
         } else {
           const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 5
@@ -285,14 +310,11 @@ export class realtimeBTCWebsoketService {
 
       if (openOrders?.length === 1 && !checkPosition) {
         console.log("length 1");
-
         try {
           const result = await this.exchange.cancelOrder(openOrders[0]?.id, symbol);
-
           return result;
         } catch (error) {
-          console.error('Error canceling order:', error);
-          throw error;
+          console.error('Lỗi length1:', error.message);
         }
       }
       if (openOrders?.length === 2 && !checkPosition) {
@@ -303,15 +325,13 @@ export class realtimeBTCWebsoketService {
           const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol);
           return { result, result2 };
         } catch (error) {
-          console.error('Error canceling order:', error);
-          throw error;
+          console.error('Lỗi length2:', error.message);
         }
       }
 
       return openOrders;
     } catch (error) {
       console.error('Failed to fetch open orders:', error);
-      throw error;
     }
   }
 
@@ -323,16 +343,18 @@ export class realtimeBTCWebsoketService {
       const position = positions.find((p: any) => p.info.symbol === "BTCUSDT" && p.positionAmt !== '0');
       if (oderLength === 0 && position && isActiveExecuteTrade) {
         const side = position.side === "short" ? 'buy' : 'sell';
-        const closeAllPositions = await this.exchange.createMarketOrder(position.symbol, side, Math.abs(parseFloat(position.info.positionAmt)));
-        console.log("đã đóng lệnh Vị thế");
-
+        let closeAllPositions
+        try {
+          closeAllPositions = await this.exchange.createMarketOrder(position.symbol, side, Math.abs(parseFloat(position.info.positionAmt)));
+          console.log("đã đóng lệnh Vị thế");
+        } catch (error) {
+          console.log("Lỗi đóng lệnh Vị thế ");
+        }
         return closeAllPositions
       }
-
       return position ? true : false
     } catch (error) {
       console.error('Error checking position:', error);
-      throw error;
     }
   }
 
@@ -348,7 +370,6 @@ export class realtimeBTCWebsoketService {
       return response.data.serverTime; // Trả về serverTime từ Binance
     } catch (error) {
       console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
-      throw error;
     }
   }
 

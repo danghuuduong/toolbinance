@@ -12,6 +12,8 @@ import { EMA } from 'technicalindicators';
 import { realtimeBTCWebsoketService } from './realtimeBTC-websoket.service';
 import { TimeService } from 'src/common/until/time/time.service';
 import * as ccxt from 'ccxt';
+import axios from 'axios';
+import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
 
 @WebSocketGateway(3001, {
   cors: {
@@ -31,7 +33,9 @@ export class realtimeBTCWebsoketGateway
   private currentInterval: string = '1m'; // Interval mặc định
   constructor(
     private readonly realtimeBTCWebsoketService: realtimeBTCWebsoketService,
-    private readonly timeService: TimeService
+    private readonly timeService: TimeService,
+    private readonly startTradingService: startTradingService,
+    private readonly handleFoldingService: handleFoldingService,
 
 
   ) {
@@ -92,22 +96,80 @@ export class realtimeBTCWebsoketGateway
     }
   }
 
+  async getServerTime() {
+    try {
+      const response = await axios.get('https://api.binance.com/api/v3/time');
+      return response.data.serverTime; // Trả về serverTime từ Binance
+    } catch (error) {
+      console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
+    }
+  }
+
   // Hàm xử lý dữ liệu nến và gửi cho frontend
   async handleCandlestickUpdate(data: any) {
-
     const candlestick = data.k;
     const isCandleClose = candlestick.x;
 
     const symbol = 'BTC/USDT';
     const openOrders = await this.getOpenOrders(symbol);
     const positions = await this.getPositions(symbol);
-    // if (openOrders.length > 0) {
-    //   console.log("openOrders", openOrders);
-    // }
-
-
-
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
+
+
+    if (positions?.length > 0 && openOrders?.length < 2) {
+      const currentPrice = parseFloat(positions[0]?.info?.entryPrice);
+      const crossOverResult = positions[0]?.side === "long" ? "sell" : " buy"
+      const takeProfitPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice + 1000 : currentPrice - 1000}`);
+      const stopLossPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice - 1000 : currentPrice + 1000}`);
+      const serverTime = await this.getServerTime();
+      const amount = positions[0]?.info?.positionAmt
+      const isSL = openOrders[0]?.type === "stop_market"
+      const isTP = openOrders[0]?.type === "take_profit_market"
+
+      let stopLossOrder
+
+      if (!isSL && isTP) {
+        try {
+          stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, stopLossPrice, {
+            stopLossPrice: stopLossPrice,
+            reduceOnly: true,
+            oco: true,
+            timestamp: serverTime,
+          });
+          console.log("Soket - SL oke");
+        } catch (error) {
+          console.log("Lỗi SL ở socket", error);
+        }
+      }
+
+
+      let takeProfitOrder
+      if (!isTP && isSL) {
+        try {
+          takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, takeProfitPrice, {
+            takeProfitPrice: takeProfitPrice,
+            reduceOnly: true,
+            oco: true,
+            timestamp: serverTime,
+          });
+          console.log("Soket - TP oke");
+
+        } catch (error) {
+          console.log("Lỗi Tp ở socket", error);
+        }
+      }
+
+      const payload = {
+        isActiveExecuteTrade: true,
+        ...stopLossOrder?.info?.orderId && { idStopLossOrder: stopLossOrder?.info?.orderId },
+        ...takeProfitOrder?.info?.orderId && { idTakeProfitOrder: takeProfitOrder?.info?.orderId },
+        ActiveExecuteTrade: timeBinance
+      }
+      const { data } = await this.startTradingService.getStartTradingData();
+      const result = data?.[0]
+      result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
+    }
+
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
 
     const candlestickInfo = {
