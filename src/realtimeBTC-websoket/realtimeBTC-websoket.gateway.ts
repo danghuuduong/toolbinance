@@ -11,6 +11,7 @@ import * as WebSocket from 'ws';
 import { EMA } from 'technicalindicators';
 import { realtimeBTCWebsoketService } from './realtimeBTC-websoket.service';
 import { TimeService } from 'src/common/until/time/time.service';
+import * as ccxt from 'ccxt';
 
 @WebSocketGateway(3001, {
   cors: {
@@ -24,35 +25,50 @@ import { TimeService } from 'src/common/until/time/time.service';
 export class realtimeBTCWebsoketGateway
   implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
+  private exchange: ccxt.binance;
 
   private binanceWs: WebSocket;
-  private currentInterval: string = '15m'; // Interval mặc định
-  private isTrading: boolean = false;
-  private totalAmount: number = 0;
-  private moneyfodingOne: number = 0;
-  private foldingCurrent: number = 0;
-  private prices: number[] = [];
-
+  private currentInterval: string = '1m'; // Interval mặc định
   constructor(
-    private readonly startTradingService: startTradingService,
     private readonly realtimeBTCWebsoketService: realtimeBTCWebsoketService,
     private readonly timeService: TimeService
+
+
   ) {
     this.connectToBinance(this.currentInterval);
-    // this.handleSetInfoMoney();
+    this.exchange = new ccxt.binance({
+      apiKey:
+        'fe3a0df4e1158de142af6a1f75cdb61771f05a21c7e13d7000f6340a65ba1440',
+      secret:
+        '77068e56cc0f1c8a7ed58ae2962cc35c896e1c80c7832d6ad0fc7407f850d6fe',
+      enableRateLimit: true,
+      options: {
+        defaultType: 'future',
+      },
+    });
+    this.exchange.setSandboxMode(true);
   }
 
-  //  handleSetInfoMoney() {
-  //   try {
-  //     const result = this.startTradingService.getStatusTrading();
-  //     this.isTrading = result.isTrading;
-  //     this.totalAmount = result.totalAmount;
-  //     this.moneyfodingOne = result.moneyfodingOne;
-  //     this.foldingCurrent = result.foldingCurrent;
-  //   } catch (error) {
-  //     console.error('Error getStatusTrading', error);
-  //   }
-  // }
+
+  async getOpenOrders(symbol: string) {
+    try {
+      const orders = await this.exchange.fetchOpenOrders(symbol);
+      return orders;
+    } catch (error) {
+      console.error('Error orders:', error);
+      return [];
+    }
+  }
+
+  async getPositions(symbol: string) {
+    try {
+      const positions = await this.exchange.fetchPositions([symbol]);
+      return positions;
+    } catch (error) {
+      console.error('Error positions:', error);
+      return [];
+    }
+  }
 
   // Hàm kết nối WebSocket
   connectToBinance(interval: string) {
@@ -61,7 +77,10 @@ export class realtimeBTCWebsoketGateway
     this.binanceWs.on('error', (err) => { console.error('WebSocket error: ', err); });
     this.binanceWs.on('close', () => { console.log(' close'); this.reconnectWebSocket(); });
     this.binanceWs.on('ping', (data) => { this.binanceWs.pong(data); });
-    // this.binanceWs.on('ping', (data) => { console.log(' ping', data); this.binanceWs.pong(data); });
+    this.binanceWs.on('ping', (data) => {
+      // console.log(' ping', data);
+      this.binanceWs.pong(data);
+    });
   }
 
   reconnectWebSocket() { this.connectToBinance(this.currentInterval); }// Hàm tự động reconnect sau khi WebSocket bị đóng
@@ -74,14 +93,23 @@ export class realtimeBTCWebsoketGateway
   }
 
   // Hàm xử lý dữ liệu nến và gửi cho frontend
-  handleCandlestickUpdate(data: any) {
+  async handleCandlestickUpdate(data: any) {
 
     const candlestick = data.k;
     const isCandleClose = candlestick.x;
 
+    const symbol = 'BTC/USDT';
+    const openOrders = await this.getOpenOrders(symbol);
+    const positions = await this.getPositions(symbol);
+    // if (openOrders.length > 0) {
+    //   console.log("openOrders", openOrders);
+    // }
+
+
+
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
-    
+
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
       openPrice: candlestick.o,
@@ -95,13 +123,13 @@ export class realtimeBTCWebsoketGateway
       emaCrossOverStatus: this.realtimeBTCWebsoketService.getEmaStatus(),
       timeBinance: timeBinance,
       messenger: this.realtimeBTCWebsoketService.getMessenger(),
-      isWaitingForCompletionStatus: this.realtimeBTCWebsoketService.getIsWaitingForCompletionStatus(),
-      
+      positions,
+      openOrders
     };
     this?.server?.emit('candleStick-RealTime', candlestickInfo);
   }
 
 
-  handleConnection(client: Socket) {  }
-  handleDisconnect(client: Socket) {  }
+  handleConnection(client: Socket) { }
+  handleDisconnect(client: Socket) { }
 }

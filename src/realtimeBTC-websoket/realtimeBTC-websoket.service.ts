@@ -11,6 +11,7 @@ import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/hand
 import * as ccxt from 'ccxt';
 import { MyInfomationService } from 'src/my-infomation-from-binance/my-infomation.service';
 import { AmountService } from 'src/money-history-changes/amount.service';
+import axios from 'axios';
 
 @Injectable()
 export class realtimeBTCWebsoketService {
@@ -38,7 +39,6 @@ export class realtimeBTCWebsoketService {
     this.exchange.setSandboxMode(true);
   }
   private messenger: string = "null";
-  private isWaitingForCompletionStatus: boolean = false;
 
   private pricesCandleCloseList: number[] = [];
   private emaStatus: { status: string; time: string } = {
@@ -63,10 +63,10 @@ export class realtimeBTCWebsoketService {
 
     this.checkOpenOrders('BTC/USDT', resultSttatusTrading)
 
-    // this.handleStartExecuteTrade("down", resultSttatusTrading, timeBinance)
-    
+    this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
+
     if (crossOverResult !== 'no') {
-      this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
+      // this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
       this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
     }
     return
@@ -123,7 +123,7 @@ export class realtimeBTCWebsoketService {
   async callApiGetCandle() {
     return this.candleService.getBTCOLHCandles({
       limit: "60",
-      type: Timeframe.FIFTEEN_MINUTES,
+      type: Timeframe.ONE_MINUTE,
     })
   }
 
@@ -156,9 +156,18 @@ export class realtimeBTCWebsoketService {
 
       const amount = moneyfodingOne / 1000;
       await this.exchange.setLeverage(10, symbol);
+      console.log("moneyfodingOne", moneyfodingOne);
+      console.log("amount", amount);
+      console.log("result.totalAmount", result.totalAmount);
+      console.log("..foldingCurrent", result.foldingCurrent);
 
       try {
-        const order = await this.exchange.createOrder(symbol, 'market', LS, amount);
+        const serverTime = await this.getServerTime();
+
+        const order = await this.exchange.createOrder(symbol, 'market', LS, amount, undefined, {
+          timestamp: serverTime,
+        });
+
         if (order) {
           const currentPrice = parseFloat(order?.info?.avgPrice);
           const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
@@ -168,11 +177,13 @@ export class realtimeBTCWebsoketService {
             stopLossPrice: stopLossPrice,
             reduceOnly: true,
             oco: true,
+            timestamp: serverTime,
           });
           const takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult === "up" ? "sell" : "buy", amount, takeProfitPrice, {
             takeProfitPrice: takeProfitPrice,
             reduceOnly: true,
             oco: true,
+            timestamp: serverTime,
           });
 
           //--------------------------------------------------------------------------------------------------------------------
@@ -184,7 +195,6 @@ export class realtimeBTCWebsoketService {
               idTakeProfitOrder: takeProfitOrder?.info?.orderId,
               ActiveExecuteTrade: timeBinance
             }
-            this.isWaitingForCompletionStatus = true
             console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne);
 
             result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
@@ -219,7 +229,6 @@ export class realtimeBTCWebsoketService {
 
         const totalPnl = [mainPNL, stopLossPNL, takeProfitPNL].reduce((total, pnl) => total + (Number(pnl?.info?.realizedPnl) || 0), 0);
         const isWin = totalPnl >= 0
-        this.isWaitingForCompletionStatus = false
 
         const sodu = await this.MyInfomationService.getMyInfomation()
         const idHistoryMoney = await this.AmountService.findAll()
@@ -333,7 +342,16 @@ export class realtimeBTCWebsoketService {
     return ticker.last;
   }
 
+  async getServerTime() {
+    try {
+      const response = await axios.get('https://api.binance.com/api/v3/time');
+      return response.data.serverTime; // Trả về serverTime từ Binance
+    } catch (error) {
+      console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
+      throw error;
+    }
+  }
+
   getEmaStatus() { return this.emaStatus }
   getMessenger() { return this.messenger }
-  getIsWaitingForCompletionStatus() { return this.isWaitingForCompletionStatus }
 }
