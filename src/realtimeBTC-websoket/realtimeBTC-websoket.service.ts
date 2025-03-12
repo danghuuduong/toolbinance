@@ -61,8 +61,8 @@ export class realtimeBTCWebsoketService {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
 
-    this.checkOpenOrders('BTC/USDT', resultSttatusTrading)
-    
+    this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance)
+
     this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
 
     if (crossOverResult !== 'no') {
@@ -174,6 +174,8 @@ export class realtimeBTCWebsoketService {
               oco: true,
               timestamp: serverTime,
             });
+            console.log("SL ok", timeBinance);
+
           } catch (error) {
             console.log("Lỗi SL", error);
           }
@@ -187,6 +189,8 @@ export class realtimeBTCWebsoketService {
               oco: true,
               timestamp: serverTime,
             });
+            console.log(" Tp ok", timeBinance);
+
           } catch (error) {
             console.log("Lỗi Tp", error);
           }
@@ -201,7 +205,7 @@ export class realtimeBTCWebsoketService {
               idTakeProfitOrder: takeProfitOrder?.info?.orderId || "null",
               ActiveExecuteTrade: timeBinance
             }
-            console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne);
+            console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne, " Lúc", timeBinance);
 
             result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
           }
@@ -216,7 +220,7 @@ export class realtimeBTCWebsoketService {
     }
   }
 
-  async checkOpenOrders(symbol: string, resultSttatusTrading) {
+  async checkOpenOrders(symbol: string, resultSttatusTrading, timeBinance) {
     try {
       let openOrders
       try {
@@ -239,7 +243,7 @@ export class realtimeBTCWebsoketService {
         console.log("Lỗi openOrders", error.message);
       }
 
-      if (!checkPosition && resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading && openOrders.length === 0) {
+      if (!checkPosition && resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading && openOrders?.length === 0) {
 
         const mainPNL = trade.find((value => value.info.orderId === resultSttatusTrading.idOrderMain))
         const stopLossPNL = trade.find((value => value.info.orderId === resultSttatusTrading.idStopLossOrder))
@@ -266,7 +270,7 @@ export class realtimeBTCWebsoketService {
 
         if (isWin) {
           const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
-          console.log("đã win : ", totalPnl, "$ tại thếp", resultSttatusTrading.foldingCurrent);
+          console.log("đã win : ", totalPnl, "$ tại thếp", resultSttatusTrading.foldingCurrent, "time", timeBinance);
 
           const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, resultSttatusTrading.foldingCurrent);
           const payload = {
@@ -280,7 +284,7 @@ export class realtimeBTCWebsoketService {
             ...sodu.USDT.total > resultSttatusTrading.largestMoney && { largestMoney: `${sodu.USDT.total}` },
             ...resultSttatusTrading.isWaitingForCompletion && { isTrading: false, isWaitingForCompletion: false }
           }
-          resultSttatusTrading.isWaitingForCompletion && console.log("đã stop");
+          resultSttatusTrading.isWaitingForCompletion && console.log("đã stop w", timeBinance);
           this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), payload);
         } else {
           const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 5
@@ -298,10 +302,10 @@ export class realtimeBTCWebsoketService {
             idTakeProfitOrder: "null",
             ...(resultSttatusTrading.isWaitingForCompletion && isFoldingbyMax) && { isTrading: false, isWaitingForCompletion: false }
           }
-          console.log("đã Thua :", totalPnl, "$, tại thếp", resultSttatusTrading.foldingCurrent, "thếp mới", foldingCurrent);
+          console.log("đã Thua :", totalPnl, "$, tại thếp", resultSttatusTrading.foldingCurrent, "thếp mới", foldingCurrent, "time:", timeBinance);
 
           if (resultSttatusTrading.isWaitingForCompletion && isFoldingbyMax) {
-            console.log("đã stop");
+            console.log("đã stop", timeBinance);
           }
 
           this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), payload);
@@ -309,7 +313,7 @@ export class realtimeBTCWebsoketService {
       }
 
       if (openOrders?.length === 1 && !checkPosition) {
-        console.log("length 1");
+        console.log("length 1", timeBinance);
         try {
           const result = await this.exchange.cancelOrder(openOrders[0]?.id, symbol);
           return result;
@@ -318,7 +322,7 @@ export class realtimeBTCWebsoketService {
         }
       }
       if (openOrders?.length === 2 && !checkPosition) {
-        console.log("đã đóng lệnh length 2");
+        console.log("đã đóng lệnh length 2", timeBinance);
 
         try {
           const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol);

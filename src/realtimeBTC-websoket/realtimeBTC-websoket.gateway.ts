@@ -115,59 +115,71 @@ export class realtimeBTCWebsoketGateway
     const positions = await this.getPositions(symbol);
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
 
+    // const isSL = openOrders[0]?.type === "stop_market"
+    // const isTP = openOrders[0]?.type === "take_profit_market"
 
-    if (positions?.length > 0 && openOrders?.length < 2) {
-      const currentPrice = parseFloat(positions[0]?.info?.entryPrice);
-      const crossOverResult = positions[0]?.side === "long" ? "sell" : " buy"
-      const takeProfitPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice + 1000 : currentPrice - 1000}`);
-      const stopLossPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice - 1000 : currentPrice + 1000}`);
-      const serverTime = await this.getServerTime();
-      const amount = positions[0]?.info?.positionAmt
-      const isSL = openOrders[0]?.type === "stop_market"
-      const isTP = openOrders[0]?.type === "take_profit_market"
+    // console.log("isSL", openOrders);
+    // console.log("isTP", isTP);
 
-      let stopLossOrder
+    if (positions?.length > 0) {
 
-      if (!isSL && isTP) {
-        try {
-          stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, stopLossPrice, {
-            stopLossPrice: stopLossPrice,
-            reduceOnly: true,
-            oco: true,
-            timestamp: serverTime,
-          });
-          console.log("Soket - SL oke");
-        } catch (error) {
-          console.log("Lỗi SL ở socket", error);
+      const givenTimestamp = positions[0]?.timestamp;
+      const currentTime = Date.now();
+      const fiveMinutesInMillis = 0.5 * 60 * 1000;
+      const is1phut = currentTime - givenTimestamp > fiveMinutesInMillis;
+
+      if (is1phut) {
+        const currentPrice = parseFloat(positions[0]?.info?.entryPrice);
+        const crossOverResult = positions[0]?.side === "long" ? "sell" : " buy"
+        const takeProfitPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice + 1000 : currentPrice - 1000}`);
+        const stopLossPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice - 1000 : currentPrice + 1000}`);
+        const serverTime = await this.getServerTime();
+        const amount = positions[0]?.info?.positionAmt
+
+        const isSL = openOrders?.find((value) => value.type === "stop_market")
+        const isTP = openOrders?.find((value) => value.type === "take_profit_market")
+
+
+        let stopLossOrder
+        if (!isSL?.info?.orderId) {
+          try {
+            stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, stopLossPrice, {
+              stopLossPrice: stopLossPrice,
+              reduceOnly: true,
+              oco: true,
+              timestamp: serverTime,
+            });
+            console.log("Soket - SL oke", timeBinance);
+          } catch (error) {
+            console.log("Lỗi SL ở socket", error);
+          }
         }
-      }
 
+        let takeProfitOrder
+        if (!isTP?.info?.orderId) {
+          try {
+            takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, takeProfitPrice, {
+              takeProfitPrice: takeProfitPrice,
+              reduceOnly: true,
+              oco: true,
+              timestamp: serverTime,
+            });
+            console.log("Soket - TP oke", timeBinance);
 
-      let takeProfitOrder
-      if (!isTP && isSL) {
-        try {
-          takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, takeProfitPrice, {
-            takeProfitPrice: takeProfitPrice,
-            reduceOnly: true,
-            oco: true,
-            timestamp: serverTime,
-          });
-          console.log("Soket - TP oke");
-
-        } catch (error) {
-          console.log("Lỗi Tp ở socket", error);
+          } catch (error) {
+            console.log("Lỗi Tp ở socket", error);
+          }
         }
+        const payload = {
+          ...stopLossOrder?.info?.orderId && { idStopLossOrder: stopLossOrder?.info?.orderId },
+          ...takeProfitOrder?.info?.orderId && { idTakeProfitOrder: takeProfitOrder?.info?.orderId },
+        }
+        const { data } = await this.startTradingService.getStartTradingData();
+        const result = data?.[0]
+        result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
+
       }
 
-      const payload = {
-        isActiveExecuteTrade: true,
-        ...stopLossOrder?.info?.orderId && { idStopLossOrder: stopLossOrder?.info?.orderId },
-        ...takeProfitOrder?.info?.orderId && { idTakeProfitOrder: takeProfitOrder?.info?.orderId },
-        ActiveExecuteTrade: timeBinance
-      }
-      const { data } = await this.startTradingService.getStartTradingData();
-      const result = data?.[0]
-      result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
     }
 
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
