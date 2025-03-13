@@ -5,7 +5,7 @@ import { CandleModule } from './candle/candle.module';
 import { StatusTradingModule } from './start-trading/start-trading.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UsersModule } from './my-infomation-users-from-app/users.module';
+import { UsersModule } from './users/users.module';
 import { MyInfomationModule } from './my-infomation-from-binance/my-infomation.module';
 import { AmountModule } from './money-history-changes/amount.module';
 import { realtimeBTCWebsoketModule } from './realtimeBTC-websoket/realtimeBTC-websoket.module';
