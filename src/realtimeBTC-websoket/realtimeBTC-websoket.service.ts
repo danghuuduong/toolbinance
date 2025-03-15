@@ -27,16 +27,13 @@ export class realtimeBTCWebsoketService {
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
   ) {
     this.exchange = new ccxt.binance({
-      apiKey:
-        'fe3a0df4e1158de142af6a1f75cdb61771f05a21c7e13d7000f6340a65ba1440',
-      secret:
-        '77068e56cc0f1c8a7ed58ae2962cc35c896e1c80c7832d6ad0fc7407f850d6fe',
+      apiKey: process.env.BINANCE_API_KEY,  
+      secret: process.env.BINANCE_API_SECRET, 
       enableRateLimit: true,
       options: {
         defaultType: 'future',
       },
     });
-    this.exchange.setSandboxMode(true);
   }
   private messenger: string = "null";
 
@@ -62,11 +59,13 @@ export class realtimeBTCWebsoketService {
     const resultSttatusTrading = data?.[0]
 
     this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance)
-
-    this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
+    console.log("vô");
+    console.log("ema",this.pricesCandleCloseList.length)
 
     if (crossOverResult !== 'no') {
-      // this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
+      console.log("cắt",crossOverResult);
+      
+      this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
       this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
     }
     return
@@ -122,7 +121,7 @@ export class realtimeBTCWebsoketService {
   async callApiGetCandle() {
     return this.candleService.getBTCOLHCandles({
       limit: "60",
-      type: Timeframe.ONE_MINUTE,
+      type: Timeframe.FIFTEEN_MINUTES,
     })
   }
 

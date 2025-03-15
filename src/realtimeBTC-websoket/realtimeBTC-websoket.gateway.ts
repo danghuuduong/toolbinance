@@ -30,7 +30,7 @@ export class realtimeBTCWebsoketGateway
   private exchange: ccxt.binance;
 
   private binanceWs: WebSocket;
-  private currentInterval: string = '1m'; // Interval mặc định
+  private currentInterval: string = '15m'; // Interval mặc định
   constructor(
     private readonly realtimeBTCWebsoketService: realtimeBTCWebsoketService,
     private readonly timeService: TimeService,
@@ -41,16 +41,13 @@ export class realtimeBTCWebsoketGateway
   ) {
     this.connectToBinance(this.currentInterval);
     this.exchange = new ccxt.binance({
-      apiKey:
-        'fe3a0df4e1158de142af6a1f75cdb61771f05a21c7e13d7000f6340a65ba1440',
-      secret:
-        '77068e56cc0f1c8a7ed58ae2962cc35c896e1c80c7832d6ad0fc7407f850d6fe',
+      apiKey: process.env.BINANCE_API_KEY,
+      secret: process.env.BINANCE_API_SECRET,
       enableRateLimit: true,
       options: {
         defaultType: 'future',
       },
     });
-    this.exchange.setSandboxMode(true);
   }
 
 
@@ -115,12 +112,6 @@ export class realtimeBTCWebsoketGateway
     const positions = await this.getPositions(symbol);
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
 
-    // const isSL = openOrders[0]?.type === "stop_market"
-    // const isTP = openOrders[0]?.type === "take_profit_market"
-
-    // console.log("isSL", openOrders);
-    // console.log("isTP", isTP);
-
     if (positions?.length > 0) {
 
       const givenTimestamp = positions[0]?.timestamp;
@@ -170,13 +161,23 @@ export class realtimeBTCWebsoketGateway
             console.log("Lỗi Tp ở socket", error);
           }
         }
-        const payload = {
-          ...stopLossOrder?.info?.orderId && { idStopLossOrder: stopLossOrder?.info?.orderId },
-          ...takeProfitOrder?.info?.orderId && { idTakeProfitOrder: takeProfitOrder?.info?.orderId },
+        if (stopLossOrder?.info?.orderId) {
+          const payload = {
+            idStopLossOrder: stopLossOrder?.info?.orderId
+          }
+          const { data } = await this.startTradingService.getStartTradingData();
+          const result = data?.[0]
+          result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
         }
-        const { data } = await this.startTradingService.getStartTradingData();
-        const result = data?.[0]
-        result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
+
+        if (takeProfitOrder?.info?.orderId) {
+          const payload = {
+            idTakeProfitOrder: takeProfitOrder?.info?.orderI
+          }
+          const { data } = await this.startTradingService.getStartTradingData();
+          const result = data?.[0]
+          result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
+        }
 
       }
 
