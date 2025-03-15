@@ -14,6 +14,7 @@ import { TimeService } from 'src/common/until/time/time.service';
 import * as ccxt from 'ccxt';
 import axios from 'axios';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
+import { Timeframe } from 'src/candle/dto/timeframe.enum';
 
 @WebSocketGateway(3001, {
   cors: {
@@ -30,12 +31,11 @@ export class realtimeBTCWebsoketGateway
   private exchange: ccxt.binance;
 
   private binanceWs: WebSocket;
-  private currentInterval: string = '15m'; // Interval mặc định
+  private currentInterval: string = '1m'; // Interval mặc định
   constructor(
     private readonly realtimeBTCWebsoketService: realtimeBTCWebsoketService,
     private readonly timeService: TimeService,
     private readonly startTradingService: startTradingService,
-    private readonly handleFoldingService: handleFoldingService,
 
 
   ) {
@@ -99,6 +99,62 @@ export class realtimeBTCWebsoketGateway
       return response.data.serverTime; // Trả về serverTime từ Binance
     } catch (error) {
       console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
+    }
+  }
+
+  private calculateEMA(data: number[], period: number): number[] {
+    let emaArray: number[] = [];
+    let k = 2 / (period + 1); // Hệ số smoothing
+
+    // Tính giá trị EMA đầu tiên (SMA cho giá trị đầu tiên)
+    emaArray.push(data.slice(0, period).reduce((acc, val) => acc + val) / period);
+
+    // Tính các giá trị EMA tiếp theo
+    for (let i = period; i < data.length; i++) {
+      const previousEma = emaArray[emaArray.length - 1];
+      const currentPrice = data[i];
+      const currentEma = currentPrice * k + previousEma * (1 - k);
+      emaArray.push(currentEma);
+    }
+
+    return emaArray;
+  }
+
+  async getEMACross(symbol: string, timeframe: string, limit: number) {
+    try {
+      // Lấy dữ liệu nến từ Binance
+      const candles = await this.exchange.fetchOHLCV(symbol, timeframe, undefined, limit);
+
+      // Lấy giá đóng cửa của các cây nến
+      const closePrices = candles.map((candle) => candle[4]);
+
+      // Tính EMA 9 và EMA 25
+      const ema9 = this.calculateEMA(closePrices, 9);
+      const ema25 = this.calculateEMA(closePrices, 25);
+
+      // Kiểm tra trạng thái cắt nhau của EMA 9 và EMA 25
+      const previousEma9 = ema9[ema9.length - 2];
+      const previousEma25 = ema25[ema25.length - 2];
+      const currentEma9 = ema9[ema9.length - 1];
+      const currentEma25 = ema25[ema25.length - 1];
+
+      // Kiểm tra trạng thái cắt nhau của EMA 9 và EMA 25
+      let crossStatus = 'no';  // Trạng thái mặc định
+
+      if (previousEma9 < previousEma25 && currentEma9 > currentEma25) {
+        crossStatus = 'up';  // EMA 9 cắt EMA 25 từ dưới lên
+      } else if (previousEma9 > previousEma25 && currentEma9 < currentEma25) {
+        crossStatus = 'down';  // EMA 9 cắt EMA 25 từ trên xuống
+      }
+
+      return {
+        crossStatus,
+        ema9: currentEma9,  // EMA 9 cuối cùng
+        ema25: currentEma25,  // EMA 25 cuối cùng
+      };
+    } catch (error) {
+      console.error('Error fetching candles or calculating EMA:', error);
+      throw new Error('Unable to fetch OHLC data or calculate EMA');
     }
   }
 
@@ -184,6 +240,34 @@ export class realtimeBTCWebsoketGateway
     }
 
     isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
+
+
+    const result = await this.getEMACross('BTC/USDT', Timeframe.ONE_MINUTE, 50);
+    const result15 = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
+    const result30 = await this.getEMACross('BTC/USDT', Timeframe.THIRTY_MINUTES, 50);
+    const result1h = await this.getEMACross('BTC/USDT', Timeframe.ONE_HOUR, 50);
+    const result2h = await this.getEMACross('BTC/USDT', Timeframe.TWO_HOURS, 50);
+
+
+    if (result?.crossStatus !== "no" ) {
+      console.log("Websoket EMA 1Phut", result, timeBinance);
+    }
+
+    // if (result15?.crossStatus !== "no") {
+    //   console.log("Websoket EMA 15Phut", result15, timeBinance);
+    // }
+    // if (result30?.crossStatus !== "no") {
+    //   console.log("Websoket EMA 13Phut", result30, timeBinance);
+
+    // }
+    // if (result1h?.crossStatus !== "no") {
+    //   console.log("Websoket EMA 1Hour", result1h, timeBinance);
+
+    // }
+    // if (result2h?.crossStatus !== "no") {
+    //   console.log("Websoket EMA 2Hour", result2h, timeBinance);
+    // }
+
 
     const candlestickInfo = {
       openTime: new Date(candlestick.t).toLocaleString(),
