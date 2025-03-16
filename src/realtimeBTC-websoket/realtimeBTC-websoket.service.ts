@@ -27,8 +27,8 @@ export class realtimeBTCWebsoketService {
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
   ) {
     this.exchange = new ccxt.binance({
-      apiKey: process.env.BINANCE_API_KEY,  
-      secret: process.env.BINANCE_API_SECRET, 
+      apiKey: process.env.BINANCE_API_KEY,
+      secret: process.env.BINANCE_API_SECRET,
       enableRateLimit: true,
       options: {
         defaultType: 'future',
@@ -37,17 +37,17 @@ export class realtimeBTCWebsoketService {
   }
   private messenger: string = "null";
 
-  async handleBuy(crossOverResult,timeBinance: string) {
+  async handleBuy(crossOverResult, timeBinance: string, timestamp) {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
-    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
+    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, timestamp)
     return
   }
 
-  async handleCheck(timeBinance: string) {
+  async handleCheck(timeBinance: string, timestamp) {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
-    this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance)
+    this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance, timestamp)
     return
   }
 
@@ -105,7 +105,7 @@ export class realtimeBTCWebsoketService {
     await created.save();
   }
 
-  async handleStartExecuteTrade(crossOverResult, result, timeBinance) {
+  async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp) {
     if (!result?.isActiveExecuteTrade && result?.isTrading) {
 
       const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(result.totalAmount, result.foldingCurrent);
@@ -117,10 +117,9 @@ export class realtimeBTCWebsoketService {
       await this.exchange.setLeverage(10, symbol);
 
       try {
-        const serverTime = await this.getServerTime();
 
         const order = await this.exchange.createOrder(symbol, 'market', LS, amount, undefined, {
-          timestamp: serverTime,
+          timestamp,
         });
 
         if (order) {
@@ -134,7 +133,7 @@ export class realtimeBTCWebsoketService {
               stopLossPrice: stopLossPrice,
               reduceOnly: true,
               oco: true,
-              timestamp: serverTime,
+              timestamp,
             });
             console.log("SL ok", timeBinance);
 
@@ -149,7 +148,7 @@ export class realtimeBTCWebsoketService {
               takeProfitPrice: takeProfitPrice,
               reduceOnly: true,
               oco: true,
-              timestamp: serverTime,
+              timestamp,
             });
             console.log(" Tp ok", timeBinance);
 
@@ -182,27 +181,29 @@ export class realtimeBTCWebsoketService {
     }
   }
 
-  async checkOpenOrders(symbol: string, resultSttatusTrading, timeBinance) {
+  async checkOpenOrders(symbol: string, resultSttatusTrading, timeBinance, timestamp) {
     try {
       let openOrders
       try {
-        openOrders = await this.exchange.fetchOpenOrders(symbol);
+        openOrders = await this.exchange.fetchOpenOrders(symbol, undefined, 4, { timestamp  });
       } catch (error) {
         console.log("Lỗi openOrders", error.message);
       }
 
       let checkPosition
       try {
-        checkPosition = await this.handleCheckPosition(symbol, openOrders.length, resultSttatusTrading?.isActiveExecuteTrade);
+        checkPosition = await this.handleCheckPosition(symbol, openOrders?.length, resultSttatusTrading?.isActiveExecuteTrade, timestamp);
       } catch (error) {
-        console.log("Lỗi openOrders", error.message);
+        console.log("Lỗi checkPosition", error.message);
       }
 
       let trade
       try {
-        trade = await this.exchange.fetchMyTrades(symbol, undefined, 9);
+         const serverTime = await this.getServerTime();
+
+        trade = await this.exchange.fetchMyTrades(symbol, undefined, 9, { timestamp });
       } catch (error) {
-        console.log("Lỗi openOrders", error.message);
+        console.log("Lỗi fetchMyTrades", error.message);
       }
 
       if (!checkPosition && resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading && openOrders?.length === 0) {
@@ -218,16 +219,16 @@ export class realtimeBTCWebsoketService {
         try {
           sodu = await this.MyInfomationService.getMyInfomation()
         } catch (error) {
-          console.log("Lỗi openOrders", error.message);
+          console.log("Lỗi getMyInfomation", error.message);
         }
-        
+
         try {
           const idHistoryMoney = await this.AmountService.findAll()
           this.AmountService.update(idHistoryMoney?.[0]?._id.toString(), {
             history: [`${sodu.USDT.total}`]
           })
         } catch (error) {
-          console.log("Lỗi openOrders", error.message);
+          console.log("Lỗi history", error.message);
         }
 
         if (isWin) {
@@ -287,8 +288,8 @@ export class realtimeBTCWebsoketService {
         console.log("đã đóng lệnh length 2", timeBinance);
 
         try {
-          const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol);
-          const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol);
+          const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol, { timestamp });
+          const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol, { timestamp });
           return { result, result2 };
         } catch (error) {
           console.error('Lỗi length2:', error.message);
@@ -302,9 +303,9 @@ export class realtimeBTCWebsoketService {
   }
 
 
-  async handleCheckPosition(symbol: string, oderLength, isActiveExecuteTrade) {
+  async handleCheckPosition(symbol: string, oderLength, isActiveExecuteTrade, timestamp) {
     try {
-      const positions = await this.exchange.fetchPositions([symbol]);
+      const positions = await this.exchange.fetchPositions([symbol], { timestamp });
 
       const position = positions.find((p: any) => p.info.symbol === "BTCUSDT" && p.positionAmt !== '0');
       if (oderLength === 0 && position && isActiveExecuteTrade) {

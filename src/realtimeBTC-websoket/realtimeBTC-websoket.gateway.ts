@@ -8,12 +8,10 @@ import {
 import { Server, Socket } from 'socket.io';
 import { startTradingService } from 'src/start-trading/start-trading.service';
 import * as WebSocket from 'ws';
-import { EMA } from 'technicalindicators';
 import { realtimeBTCWebsoketService } from './realtimeBTC-websoket.service';
 import { TimeService } from 'src/common/until/time/time.service';
 import * as ccxt from 'ccxt';
 import axios from 'axios';
-import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
 import { Timeframe } from 'src/candle/dto/timeframe.enum';
 
 @WebSocketGateway(3001, {
@@ -51,9 +49,9 @@ export class realtimeBTCWebsoketGateway
   }
 
 
-  async getOpenOrders(symbol: string) {
+  async getOpenOrders(symbol: string, timestamp) {
     try {
-      const orders = await this.exchange.fetchOpenOrders(symbol);
+      const orders = await this.exchange.fetchOpenOrders(symbol, undefined, 4, { timestamp });
       return orders;
     } catch (error) {
       console.error('Error orders:', error);
@@ -61,9 +59,9 @@ export class realtimeBTCWebsoketGateway
     }
   }
 
-  async getPositions(symbol: string) {
+  async getPositions(symbol: string, timestamp) {
     try {
-      const positions = await this.exchange.fetchPositions([symbol]);
+      const positions = await this.exchange.fetchPositions([symbol], { timestamp });
       return positions;
     } catch (error) {
       console.error('Error positions:', error);
@@ -164,8 +162,9 @@ export class realtimeBTCWebsoketGateway
     const isCandleClose = candlestick.x;
 
     const symbol = 'BTC/USDT';
-    const openOrders = await this.getOpenOrders(symbol);
-    const positions = await this.getPositions(symbol);
+    const serverTime = await this.getServerTime();
+    const openOrders = await this.getOpenOrders(symbol, serverTime);
+    const positions = await this.getPositions(symbol, serverTime);
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
 
     if (positions?.length > 0) {
@@ -180,7 +179,6 @@ export class realtimeBTCWebsoketGateway
         const crossOverResult = positions[0]?.side === "long" ? "sell" : " buy"
         const takeProfitPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice + 1000 : currentPrice - 1000}`);
         const stopLossPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice - 1000 : currentPrice + 1000}`);
-        const serverTime = await this.getServerTime();
         const amount = positions[0]?.info?.positionAmt
 
         const isSL = openOrders?.find((value) => value.type === "stop_market")
@@ -239,10 +237,7 @@ export class realtimeBTCWebsoketGateway
 
     }
 
-
-    
-
-    isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance)
+    isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance, serverTime)
 
     if (positions?.length === 0) {
       const result30 = await this.getEMACross('BTC/USDT', Timeframe.THIRTY_MINUTES, 50);
@@ -253,20 +248,20 @@ export class realtimeBTCWebsoketGateway
 
       if (result4h?.crossStatus !== "no") {
         console.log("EMA 4 giờ");
-        this.realtimeBTCWebsoketService.handleBuy(result4h?.crossStatus, timeBinance);
+        this.realtimeBTCWebsoketService.handleBuy(result4h?.crossStatus, timeBinance, serverTime);
       }
       if (result2h?.crossStatus !== "no") {
         console.log("EMA 2 giờ");
-        this.realtimeBTCWebsoketService.handleBuy(result2h?.crossStatus, timeBinance);
+        this.realtimeBTCWebsoketService.handleBuy(result2h?.crossStatus, timeBinance, serverTime);
       }
 
       if (result1h?.crossStatus !== "no") {
         console.log("EMA 1 giờ");
-        this.realtimeBTCWebsoketService.handleBuy(result1h?.crossStatus, timeBinance);
+        this.realtimeBTCWebsoketService.handleBuy(result1h?.crossStatus, timeBinance, serverTime);
       }
       if (result30?.crossStatus !== "no") {
         console.log("EMA 30");
-        this.realtimeBTCWebsoketService.handleBuy(result30?.crossStatus, timeBinance);
+        this.realtimeBTCWebsoketService.handleBuy(result30?.crossStatus, timeBinance, serverTime);
       }
     }
 
