@@ -239,34 +239,36 @@ export class realtimeBTCWebsoketGateway
 
     }
 
-    isCandleClose && this.realtimeBTCWebsoketService.mainTrading(timeBinance, candlestick.c);
+
+    
+
+    isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance)
+
+    if (positions?.length === 0) {
+      const result30 = await this.getEMACross('BTC/USDT', Timeframe.THIRTY_MINUTES, 50);
+      const result1h = await this.getEMACross('BTC/USDT', Timeframe.ONE_HOUR, 50);
+      const result2h = await this.getEMACross('BTC/USDT', Timeframe.TWO_HOURS, 50);
+      const result4h = await this.getEMACross('BTC/USDT', Timeframe.FOUR_HOURS, 50);
 
 
-    const result = await this.getEMACross('BTC/USDT', Timeframe.ONE_MINUTE, 50);
-    const result15 = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
-    const result30 = await this.getEMACross('BTC/USDT', Timeframe.THIRTY_MINUTES, 50);
-    const result1h = await this.getEMACross('BTC/USDT', Timeframe.ONE_HOUR, 50);
-    const result2h = await this.getEMACross('BTC/USDT', Timeframe.TWO_HOURS, 50);
+      if (result4h?.crossStatus !== "no") {
+        console.log("EMA 4 giờ");
+        this.realtimeBTCWebsoketService.handleBuy(result4h?.crossStatus, timeBinance);
+      }
+      if (result2h?.crossStatus !== "no") {
+        console.log("EMA 2 giờ");
+        this.realtimeBTCWebsoketService.handleBuy(result2h?.crossStatus, timeBinance);
+      }
 
-
-    if (result?.crossStatus !== "no" ) {
-      console.log("Websoket EMA 1Phut", result, timeBinance);
+      if (result1h?.crossStatus !== "no") {
+        console.log("EMA 1 giờ");
+        this.realtimeBTCWebsoketService.handleBuy(result1h?.crossStatus, timeBinance);
+      }
+      if (result30?.crossStatus !== "no") {
+        console.log("EMA 30");
+        this.realtimeBTCWebsoketService.handleBuy(result30?.crossStatus, timeBinance);
+      }
     }
-
-    // if (result15?.crossStatus !== "no") {
-    //   console.log("Websoket EMA 15Phut", result15, timeBinance);
-    // }
-    // if (result30?.crossStatus !== "no") {
-    //   console.log("Websoket EMA 13Phut", result30, timeBinance);
-
-    // }
-    // if (result1h?.crossStatus !== "no") {
-    //   console.log("Websoket EMA 1Hour", result1h, timeBinance);
-
-    // }
-    // if (result2h?.crossStatus !== "no") {
-    //   console.log("Websoket EMA 2Hour", result2h, timeBinance);
-    // }
 
 
     const candlestickInfo = {
@@ -279,7 +281,6 @@ export class realtimeBTCWebsoketGateway
       closeTime: new Date(candlestick.T).toLocaleString(),
       type: candlestick.i,
       statusTrading: true,
-      emaCrossOverStatus: this.realtimeBTCWebsoketService.getEmaStatus(),
       timeBinance: timeBinance,
       messenger: this.realtimeBTCWebsoketService.getMessenger(),
       positions,

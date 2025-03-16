@@ -37,57 +37,20 @@ export class realtimeBTCWebsoketService {
   }
   private messenger: string = "null";
 
-  private pricesCandleCloseList: number[] = [];
-  private emaStatus: { status: string; time: string } = {
-    status: 'no',
-    time: '',
-  };
-
-  async mainTrading(timeBinance: string, currentPrice) {
-    try {
-      const candleList = await this.callApiGetCandle();
-      this.pricesCandleCloseList = candleList.map((value) => value.close);
-    }
-    catch (error) {
-      console.error('Error get Api 60 record faild', error);
-    }
-
-    const crossOverResult = this.checkEmaCrossover(this.pricesCandleCloseList) as 'up' | 'down' | 'no';
-
-    this.emaStatus = { status: crossOverResult, time: crossOverResult !== 'no' ? timeBinance : 'null', };
+  async handleBuy(crossOverResult,timeBinance: string) {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
-
-    this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance)
-    console.log("vô");
-    console.log("ema",this.pricesCandleCloseList.length)
-
-    if (crossOverResult !== 'no') {
-      console.log("cắt",crossOverResult);
-      
-      this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
-      this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
-    }
+    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
     return
   }
 
-  checkEmaCrossover(pricesCandleCloseList: number[]): string {
-    const ema9 = EMA.calculate({ period: 9, values: pricesCandleCloseList });
-    const ema25 = EMA.calculate({ period: 25, values: pricesCandleCloseList });
-
-    if (ema9.length > 1 && ema25.length > 1) {
-      const lastEma9 = ema9[ema9.length - 1];
-      const lastEma25 = ema25[ema25.length - 1];
-      const previousEma9 = ema9[ema9.length - 2];
-      const previousEma25 = ema25[ema25.length - 2];
-      if (lastEma9 > lastEma25 && previousEma9 <= previousEma25) {
-        return "up";
-      } else if (lastEma9 < lastEma25 && previousEma9 >= previousEma25) {
-        return "down";
-      }
-    }
-    return "no";
+  async handleCheck(timeBinance: string) {
+    const { data } = await this.startTradingService.getStartTradingData();
+    const resultSttatusTrading = data?.[0]
+    this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance)
+    return
   }
+
 
   async getAllEmaCrossHistory(param: { page: number; limit: number }) {
     try {
@@ -257,7 +220,7 @@ export class realtimeBTCWebsoketService {
         } catch (error) {
           console.log("Lỗi openOrders", error.message);
         }
-
+        
         try {
           const idHistoryMoney = await this.AmountService.findAll()
           this.AmountService.update(idHistoryMoney?.[0]?._id.toString(), {
@@ -375,7 +338,5 @@ export class realtimeBTCWebsoketService {
       console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
     }
   }
-
-  getEmaStatus() { return this.emaStatus }
   getMessenger() { return this.messenger }
 }
