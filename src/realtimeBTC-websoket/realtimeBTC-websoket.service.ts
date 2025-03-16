@@ -213,7 +213,7 @@ export class realtimeBTCWebsoketService {
         const takeProfitPNL = trade.find((value => value.info.orderId === resultSttatusTrading.idTakeProfitOrder))
 
         const totalPnl = [mainPNL, stopLossPNL, takeProfitPNL].reduce((total, pnl) => total + (Number(pnl?.info?.realizedPnl) || 0), 0);
-        const isWin = totalPnl >= 0
+        const isWin = totalPnl > 0
 
         let sodu
         try {
