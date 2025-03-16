@@ -8,8 +8,8 @@ export class MyInfomationService {
 
   constructor() {
     this.exchange = new ccxt.binance({
-      apiKey: process.env.BINANCE_API_KEY,  
-      secret: process.env.BINANCE_API_SECRET, 
+      apiKey: process.env.BINANCE_API_KEY,
+      secret: process.env.BINANCE_API_SECRET,
       enableRateLimit: true,
       options: {
         defaultType: 'future', // Chỉ làm việc với Futures
@@ -34,9 +34,10 @@ export class MyInfomationService {
 
   async getMyInfomation() {
     try {
-      const serverTime = await this.getServerTime();
+      const timestamp = await this.getServerTime();
+
       const balance = await this.exchange.fetchBalance({
-        timestamp: serverTime,
+        timestamp
       });
 
       if (!balance) {
