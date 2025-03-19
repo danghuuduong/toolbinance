@@ -4,18 +4,18 @@ export class CreateUserDto {
   @IsString()
   name: string;
 
-  @IsEmail()
+  @IsString()
   email: string;
 
   @IsString()
-  usd: string;
+  password: string;
 
   @IsString()
-  profit: string;
+  repassword: string;
 
   @IsString()
-  deathCount: number;
+  keyApi: string;
 
   @IsString()
-  totalOrders: number;
+  keySecret : string;
 }
