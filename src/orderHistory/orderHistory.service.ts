@@ -20,7 +20,7 @@ export class OrderHistoryService {
   async getOrderHistory(symbol: string = 'BTC/USDT') {
     try {
       const now = this.exchange.milliseconds();
-      const since = now - 24 * 60 * 60 * 1000;
+      const since = now - 120 * 60 * 60 * 1000;
       const trades = await this.exchange.fetchMyTrades(symbol, since); 
       const reversedtrades = trades.reverse();
 

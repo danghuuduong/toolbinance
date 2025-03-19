@@ -240,29 +240,15 @@ export class realtimeBTCWebsoketGateway
     isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance, serverTime)
 
     if (positions?.length === 0) {
-      const result30 = await this.getEMACross('BTC/USDT', Timeframe.THIRTY_MINUTES, 50);
-      const result1h = await this.getEMACross('BTC/USDT', Timeframe.ONE_HOUR, 50);
-      const result2h = await this.getEMACross('BTC/USDT', Timeframe.TWO_HOURS, 50);
-      const result4h = await this.getEMACross('BTC/USDT', Timeframe.FOUR_HOURS, 50);
-
-
-      if (result4h?.crossStatus !== "no") {
-        console.log("EMA 4 giờ");
-        this.realtimeBTCWebsoketService.handleBuy(result4h?.crossStatus, timeBinance, serverTime);
-      }
-      if (result2h?.crossStatus !== "no") {
-        console.log("EMA 2 giờ");
-        this.realtimeBTCWebsoketService.handleBuy(result2h?.crossStatus, timeBinance, serverTime);
-      }
+      const result1h = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
 
       if (result1h?.crossStatus !== "no") {
-        console.log("EMA 1 giờ");
-        this.realtimeBTCWebsoketService.handleBuy(result1h?.crossStatus, timeBinance, serverTime);
+        const currentTime = new Date().toLocaleTimeString();
+        console.log("EMA 1 giờ", result1h, currentTime);
+        const limitPrice = result1h?.crossStatus === "up" ? result1h.ema9 : result1h.ema25
+        this.realtimeBTCWebsoketService.handleBuy(result1h?.crossStatus, timeBinance, serverTime, limitPrice);
       }
-      if (result30?.crossStatus !== "no") {
-        console.log("EMA 30");
-        this.realtimeBTCWebsoketService.handleBuy(result30?.crossStatus, timeBinance, serverTime);
-      }
+
     }
 
 

@@ -37,10 +37,12 @@ export class realtimeBTCWebsoketService {
   }
   private messenger: string = "null";
 
-  async handleBuy(crossOverResult, timeBinance: string, timestamp) {
+  async handleBuy(crossOverResult, timeBinance: string, timestamp, limitPrice) {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
-    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, timestamp)
+    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, timestamp, limitPrice)
+    this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
+
     return
   }
 
@@ -89,6 +91,7 @@ export class realtimeBTCWebsoketService {
   }
 
   async handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance) {
+    const currentTime = new Date().toLocaleTimeString();
     const newData: CreateEmaCrossHistoryDto = {
       cross: crossOverResult,
       isTrading: resultSttatusTrading?.isTrading,
@@ -99,13 +102,13 @@ export class realtimeBTCWebsoketService {
       moneyfodingOne: resultSttatusTrading?.moneyfodingOne,
       foldingCurrent: resultSttatusTrading?.foldingCurrent,
       largestMoney: resultSttatusTrading?.largestMoney,
-      time: timeBinance,
+      time: currentTime,
     };
     const created = new this.EmaCrossHistoryModel(newData);
     await created.save();
   }
 
-  async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp) {
+  async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp,limitPrice) {
     if (!result?.isActiveExecuteTrade && result?.isTrading) {
 
       const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(result.totalAmount, result.foldingCurrent);
@@ -118,9 +121,10 @@ export class realtimeBTCWebsoketService {
 
       try {
 
-        const order = await this.exchange.createOrder(symbol, 'market', LS, amount, undefined, {
+        const order = await this.exchange.createOrder(symbol, 'limit', LS, amount, limitPrice, {
           timestamp,
         });
+
 
         if (order) {
           const currentPrice = parseFloat(order?.info?.avgPrice);
@@ -162,11 +166,12 @@ export class realtimeBTCWebsoketService {
             const payload = {
               isActiveExecuteTrade: true,
               idOrderMain: order?.info?.orderId,
-              idStopLossOrder: stopLossOrder?.info?.orderId || "null",
-              idTakeProfitOrder: takeProfitOrder?.info?.orderId || "null",
+              idStopLossOrder: stopLossOrder?.info?.orderId,
+              idTakeProfitOrder: takeProfitOrder?.info?.orderId,
               ActiveExecuteTrade: timeBinance
             }
-            console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne, " Lúc", timeBinance);
+            const currentTime = new Date().toLocaleTimeString();
+            console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne, " Với giá", currentPrice, " Lúc", currentTime);
 
             result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
           }
@@ -185,7 +190,7 @@ export class realtimeBTCWebsoketService {
     try {
       let openOrders
       try {
-        openOrders = await this.exchange.fetchOpenOrders(symbol, undefined, 4, { timestamp  });
+        openOrders = await this.exchange.fetchOpenOrders(symbol, undefined, 4, { timestamp });
       } catch (error) {
         console.log("Lỗi openOrders", error.message);
       }
@@ -199,8 +204,6 @@ export class realtimeBTCWebsoketService {
 
       let trade
       try {
-         const serverTime = await this.getServerTime();
-
         trade = await this.exchange.fetchMyTrades(symbol, undefined, 9, { timestamp });
       } catch (error) {
         console.log("Lỗi fetchMyTrades", error.message);
@@ -213,7 +216,7 @@ export class realtimeBTCWebsoketService {
         const takeProfitPNL = trade.find((value => value.info.orderId === resultSttatusTrading.idTakeProfitOrder))
 
         const totalPnl = [mainPNL, stopLossPNL, takeProfitPNL].reduce((total, pnl) => total + (Number(pnl?.info?.realizedPnl) || 0), 0);
-        const isWin = totalPnl > 0
+        const isWin = totalPnl >= 0
 
         let sodu
         try {
