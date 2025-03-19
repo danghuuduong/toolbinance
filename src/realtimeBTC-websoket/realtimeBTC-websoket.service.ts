@@ -27,68 +27,32 @@ export class realtimeBTCWebsoketService {
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
   ) {
     this.exchange = new ccxt.binance({
-      apiKey:
-        'fe3a0df4e1158de142af6a1f75cdb61771f05a21c7e13d7000f6340a65ba1440',
-      secret:
-        '77068e56cc0f1c8a7ed58ae2962cc35c896e1c80c7832d6ad0fc7407f850d6fe',
+      apiKey: process.env.BINANCE_API_KEY,
+      secret: process.env.BINANCE_API_SECRET,
       enableRateLimit: true,
       options: {
         defaultType: 'future',
       },
     });
-    this.exchange.setSandboxMode(true);
   }
   private messenger: string = "null";
 
-  private pricesCandleCloseList: number[] = [];
-  private emaStatus: { status: string; time: string } = {
-    status: 'no',
-    time: '',
-  };
-
-  async mainTrading(timeBinance: string, currentPrice) {
-    try {
-      const candleList = await this.callApiGetCandle();
-      this.pricesCandleCloseList = candleList.map((value) => value.close);
-    }
-    catch (error) {
-      console.error('Error get Api 60 record faild', error);
-    }
-
-    const crossOverResult = this.checkEmaCrossover(this.pricesCandleCloseList) as 'up' | 'down' | 'no';
-
-    this.emaStatus = { status: crossOverResult, time: crossOverResult !== 'no' ? timeBinance : 'null', };
+  async handleBuy(crossOverResult, timeBinance: string, timestamp, limitPrice) {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
+    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, timestamp, limitPrice)
+    this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
 
-    this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance)
-
-    this.handleStartExecuteTrade("up", resultSttatusTrading, timeBinance)
-
-    if (crossOverResult !== 'no') {
-      // this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance)
-      this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
-    }
     return
   }
 
-  checkEmaCrossover(pricesCandleCloseList: number[]): string {
-    const ema9 = EMA.calculate({ period: 9, values: pricesCandleCloseList });
-    const ema25 = EMA.calculate({ period: 25, values: pricesCandleCloseList });
-
-    if (ema9.length > 1 && ema25.length > 1) {
-      const lastEma9 = ema9[ema9.length - 1];
-      const lastEma25 = ema25[ema25.length - 1];
-      const previousEma9 = ema9[ema9.length - 2];
-      const previousEma25 = ema25[ema25.length - 2];
-      if (lastEma9 > lastEma25 && previousEma9 <= previousEma25) {
-        return "up";
-      } else if (lastEma9 < lastEma25 && previousEma9 >= previousEma25) {
-        return "down";
-      }
-    }
-    return "no";
+  async handleCheck(timeBinance: string, timestamp) {
+    const { data } = await this.startTradingService.getStartTradingData();
+    const resultSttatusTrading = data?.[0]
+    this.checkOpenOrders('BTC/USDT', resultSttatusTrading, timeBinance, timestamp)
+    return
   }
+
 
   async getAllEmaCrossHistory(param: { page: number; limit: number }) {
     try {
@@ -122,11 +86,12 @@ export class realtimeBTCWebsoketService {
   async callApiGetCandle() {
     return this.candleService.getBTCOLHCandles({
       limit: "60",
-      type: Timeframe.ONE_MINUTE,
+      type: Timeframe.FIFTEEN_MINUTES,
     })
   }
 
   async handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance) {
+    const currentTime = new Date().toLocaleTimeString();
     const newData: CreateEmaCrossHistoryDto = {
       cross: crossOverResult,
       isTrading: resultSttatusTrading?.isTrading,
@@ -137,13 +102,13 @@ export class realtimeBTCWebsoketService {
       moneyfodingOne: resultSttatusTrading?.moneyfodingOne,
       foldingCurrent: resultSttatusTrading?.foldingCurrent,
       largestMoney: resultSttatusTrading?.largestMoney,
-      time: timeBinance,
+      time: currentTime,
     };
     const created = new this.EmaCrossHistoryModel(newData);
     await created.save();
   }
 
-  async handleStartExecuteTrade(crossOverResult, result, timeBinance) {
+  async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp,limitPrice) {
     if (!result?.isActiveExecuteTrade && result?.isTrading) {
 
       const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(result.totalAmount, result.foldingCurrent);
@@ -155,11 +120,11 @@ export class realtimeBTCWebsoketService {
       await this.exchange.setLeverage(10, symbol);
 
       try {
-        const serverTime = await this.getServerTime();
 
-        const order = await this.exchange.createOrder(symbol, 'market', LS, amount, undefined, {
-          timestamp: serverTime,
+        const order = await this.exchange.createOrder(symbol, 'limit', LS, amount, limitPrice, {
+          timestamp,
         });
+
 
         if (order) {
           const currentPrice = parseFloat(order?.info?.avgPrice);
@@ -172,7 +137,7 @@ export class realtimeBTCWebsoketService {
               stopLossPrice: stopLossPrice,
               reduceOnly: true,
               oco: true,
-              timestamp: serverTime,
+              timestamp,
             });
             console.log("SL ok", timeBinance);
 
@@ -187,7 +152,7 @@ export class realtimeBTCWebsoketService {
               takeProfitPrice: takeProfitPrice,
               reduceOnly: true,
               oco: true,
-              timestamp: serverTime,
+              timestamp,
             });
             console.log(" Tp ok", timeBinance);
 
@@ -201,11 +166,12 @@ export class realtimeBTCWebsoketService {
             const payload = {
               isActiveExecuteTrade: true,
               idOrderMain: order?.info?.orderId,
-              idStopLossOrder: stopLossOrder?.info?.orderId || "null",
-              idTakeProfitOrder: takeProfitOrder?.info?.orderId || "null",
+              idStopLossOrder: stopLossOrder?.info?.orderId,
+              idTakeProfitOrder: takeProfitOrder?.info?.orderId,
               ActiveExecuteTrade: timeBinance
             }
-            console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne, " Lúc", timeBinance);
+            const currentTime = new Date().toLocaleTimeString();
+            console.log("đã oder", amount, "tại thếp", result.foldingCurrent, "số tiền là", moneyfodingOne, " Với giá", currentPrice, " Lúc", currentTime);
 
             result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
           }
@@ -220,27 +186,27 @@ export class realtimeBTCWebsoketService {
     }
   }
 
-  async checkOpenOrders(symbol: string, resultSttatusTrading, timeBinance) {
+  async checkOpenOrders(symbol: string, resultSttatusTrading, timeBinance, timestamp) {
     try {
       let openOrders
       try {
-        openOrders = await this.exchange.fetchOpenOrders(symbol);
+        openOrders = await this.exchange.fetchOpenOrders(symbol, undefined, 4, { timestamp });
       } catch (error) {
         console.log("Lỗi openOrders", error.message);
       }
 
       let checkPosition
       try {
-        checkPosition = await this.handleCheckPosition(symbol, openOrders.length, resultSttatusTrading?.isActiveExecuteTrade);
+        checkPosition = await this.handleCheckPosition(symbol, openOrders?.length, resultSttatusTrading?.isActiveExecuteTrade, timestamp);
       } catch (error) {
-        console.log("Lỗi openOrders", error.message);
+        console.log("Lỗi checkPosition", error.message);
       }
 
       let trade
       try {
-        trade = await this.exchange.fetchMyTrades(symbol, undefined, 9);
+        trade = await this.exchange.fetchMyTrades(symbol, undefined, 9, { timestamp });
       } catch (error) {
-        console.log("Lỗi openOrders", error.message);
+        console.log("Lỗi fetchMyTrades", error.message);
       }
 
       if (!checkPosition && resultSttatusTrading?.isActiveExecuteTrade && resultSttatusTrading?.isTrading && openOrders?.length === 0) {
@@ -256,7 +222,7 @@ export class realtimeBTCWebsoketService {
         try {
           sodu = await this.MyInfomationService.getMyInfomation()
         } catch (error) {
-          console.log("Lỗi openOrders", error.message);
+          console.log("Lỗi getMyInfomation", error.message);
         }
 
         try {
@@ -265,7 +231,7 @@ export class realtimeBTCWebsoketService {
             history: [`${sodu.USDT.total}`]
           })
         } catch (error) {
-          console.log("Lỗi openOrders", error.message);
+          console.log("Lỗi history", error.message);
         }
 
         if (isWin) {
@@ -325,8 +291,8 @@ export class realtimeBTCWebsoketService {
         console.log("đã đóng lệnh length 2", timeBinance);
 
         try {
-          const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol);
-          const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol);
+          const result = await this.exchange.cancelOrder(resultSttatusTrading?.idStopLossOrder, symbol, { timestamp });
+          const result2 = await this.exchange.cancelOrder(resultSttatusTrading?.idTakeProfitOrder, symbol, { timestamp });
           return { result, result2 };
         } catch (error) {
           console.error('Lỗi length2:', error.message);
@@ -340,9 +306,9 @@ export class realtimeBTCWebsoketService {
   }
 
 
-  async handleCheckPosition(symbol: string, oderLength, isActiveExecuteTrade) {
+  async handleCheckPosition(symbol: string, oderLength, isActiveExecuteTrade, timestamp) {
     try {
-      const positions = await this.exchange.fetchPositions([symbol]);
+      const positions = await this.exchange.fetchPositions([symbol], { timestamp });
 
       const position = positions.find((p: any) => p.info.symbol === "BTCUSDT" && p.positionAmt !== '0');
       if (oderLength === 0 && position && isActiveExecuteTrade) {
@@ -376,7 +342,5 @@ export class realtimeBTCWebsoketService {
       console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
     }
   }
-
-  getEmaStatus() { return this.emaStatus }
   getMessenger() { return this.messenger }
 }
