@@ -121,7 +121,7 @@ export class realtimeBTCWebsoketService {
 
       try {
 
-        const order = await this.exchange.createOrder(symbol, 'limit', LS, amount, limitPrice, {
+        const order = await this.exchange.createOrder(symbol, 'market', LS, amount, undefined, {
           timestamp,
         });
 
@@ -253,7 +253,7 @@ export class realtimeBTCWebsoketService {
           resultSttatusTrading.isWaitingForCompletion && console.log("đã stop w", timeBinance);
           this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), payload);
         } else {
-          const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 5
+          const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 4
           const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
           const foldingCurrent = isFoldingbyMax ? 1 : (resultSttatusTrading.foldingCurrent + 1);
           const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, foldingCurrent);
@@ -329,9 +329,15 @@ export class realtimeBTCWebsoketService {
   }
 
   // -------------------------------------------------------------------------
-  async getCurrentBTCPrice(): Promise<number> {
-    const ticker = await this.exchange.fetchTicker('BTC/USDT');
+  async getCurrentBTCPrice(serverTime) {
+    try {
+    const ticker = await this.exchange.fetchTicker('BTC/USDT',{
+      timestamp: serverTime
+    });
     return ticker.last;
+    } catch (error) {
+      return 0
+    }
   }
 
   async getServerTime() {

@@ -39,7 +39,7 @@ export class MyInfomationService {
       const balance = await this.exchange.fetchBalance({
         timestamp
       });
-
+      
       if (!balance) {
         throw new Error('Không thể lấy thông tin số dư từ Binance.');
       }

@@ -30,12 +30,14 @@ export class realtimeBTCWebsoketGateway
 
   private binanceWs: WebSocket;
   private currentInterval: string = '1m'; // Interval mặc định
+  private isEMA= false; 
+  private giaEma= 0; 
+  private huongEMA= "no"; 
+
   constructor(
     private readonly realtimeBTCWebsoketService: realtimeBTCWebsoketService,
     private readonly timeService: TimeService,
     private readonly startTradingService: startTradingService,
-
-
   ) {
     this.connectToBinance(this.currentInterval);
     this.exchange = new ccxt.binance({
@@ -47,6 +49,7 @@ export class realtimeBTCWebsoketGateway
       },
     });
   }
+
 
 
   async getOpenOrders(symbol: string, timestamp) {
@@ -241,12 +244,33 @@ export class realtimeBTCWebsoketGateway
 
     if (positions?.length === 0) {
       const result1h = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
+      
+      if (result1h?.crossStatus !== "no" || this.isEMA) {
 
-      if (result1h?.crossStatus !== "no") {
         const currentTime = new Date().toLocaleTimeString();
         console.log("EMA 1 giờ", result1h, currentTime);
-        const limitPrice = result1h?.crossStatus === "up" ? result1h.ema9 : result1h.ema25
-        this.realtimeBTCWebsoketService.handleBuy(result1h?.crossStatus, timeBinance, serverTime, limitPrice);
+
+      
+        if(this.huongEMA === "no") {
+          this.huongEMA = result1h?.crossStatus
+        }
+        if(this.isEMA === false) {
+          this.isEMA = true
+        }
+       
+        if(this.giaEma === 0) {
+          this.giaEma = result1h?.crossStatus === "up" ? result1h.ema9 : result1h.ema25
+        }
+
+        const giabtc = await this.realtimeBTCWebsoketService.getCurrentBTCPrice(serverTime)
+
+        if(this.huongEMA === "up" ? this.giaEma + 100 > giabtc : this.giaEma - 100 < giabtc) {
+          console.log("Vô", this.giaEma, giabtc);
+          this.realtimeBTCWebsoketService.handleBuy(this.huongEMA, timeBinance, serverTime, this.giaEma);
+          this.giaEma = 0
+          this.isEMA = false
+          this.huongEMA = "no"
+        }
       }
 
     }
