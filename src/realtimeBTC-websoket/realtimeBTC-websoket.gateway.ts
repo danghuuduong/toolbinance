@@ -243,7 +243,7 @@ export class realtimeBTCWebsoketGateway
     isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance, serverTime)
 
     if (positions?.length === 0) {
-      const result1h = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
+      const result1h = await this.getEMACross('BTC/USDT', Timeframe.ONE_HOUR, 50);
       
       if (result1h?.crossStatus !== "no" || this.isEMA) {
 

@@ -253,7 +253,7 @@ export class realtimeBTCWebsoketService {
           resultSttatusTrading.isWaitingForCompletion && console.log("đã stop w", timeBinance);
           this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), payload);
         } else {
-          const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 4
+          const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 3
           const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
           const foldingCurrent = isFoldingbyMax ? 1 : (resultSttatusTrading.foldingCurrent + 1);
           const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, foldingCurrent);
