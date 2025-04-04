@@ -27,8 +27,8 @@ export class MyInfomationService {
       const response = await axios.get('https://api.binance.com/api/v3/time');
       return response.data.serverTime;  // Trả về serverTime từ Binance
     } catch (error) {
-      console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
-      throw new Error('Không thể lấy thời gian từ máy chủ Binance.');
+      console.error('Không thể lấy thời gian :', error);
+      return
     }
   }
 
@@ -41,7 +41,8 @@ export class MyInfomationService {
       });
       
       if (!balance) {
-        throw new Error('Không thể lấy thông tin số dư từ Binance.');
+        // throw new Error('Không thể lấy thông tin số dư từ Binance.');
+        return
       }
 
       // In ra số dư của tài khoản
@@ -56,6 +57,7 @@ export class MyInfomationService {
       return data;
     } catch (error) {
       console.error('Lỗi khi lấy thông tin tài khoản:', error.message);
+      return
       throw new Error('Lỗi khi lấy thông tin tài khoản: ' + error.message);
     }
   }

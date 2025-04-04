@@ -13,7 +13,6 @@ export class handleFoldingService {
         return foldingOne * 2.5;
       case 3:
         return foldingOne * 5.5;
-     
       default:
         return 0;
     }

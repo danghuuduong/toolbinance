@@ -30,9 +30,9 @@ export class realtimeBTCWebsoketGateway
 
   private binanceWs: WebSocket;
   private currentInterval: string = '1m'; // Interval mặc định
-  private isEMA= false; 
-  private giaEma= 0; 
-  private huongEMA= "no"; 
+  private isEMA = false;
+  private huongEMA = "no";
+  private timeCrossEma: any = "";
 
   constructor(
     private readonly realtimeBTCWebsoketService: realtimeBTCWebsoketService,
@@ -129,6 +129,11 @@ export class realtimeBTCWebsoketGateway
       // Lấy giá đóng cửa của các cây nến
       const closePrices = candles.map((candle) => candle[4]);
 
+      const lastCandle = candles[candles.length - 1];
+      const openPrice = lastCandle[1];  // Giá mở cửa của cây nến cuối cùng
+      const closePrice = lastCandle[4]; // Giá đóng cửa của cây nến cuối cùng
+
+
       // Tính EMA 9 và EMA 25
       const ema9 = this.calculateEMA(closePrices, 9);
       const ema25 = this.calculateEMA(closePrices, 25);
@@ -150,12 +155,14 @@ export class realtimeBTCWebsoketGateway
 
       return {
         crossStatus,
-        ema9: currentEma9,  // EMA 9 cuối cùng
-        ema25: currentEma25,  // EMA 25 cuối cùng
+        ema9: currentEma9,
+        ema25: currentEma25,
+        openPrice,
+        closePrice
       };
     } catch (error) {
       console.error('Error fetching candles or calculating EMA:', error);
-      throw new Error('Unable to fetch OHLC data or calculate EMA');
+      return
     }
   }
 
@@ -242,34 +249,45 @@ export class realtimeBTCWebsoketGateway
 
     isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance, serverTime)
 
+
+
+
+
     if (positions?.length === 0) {
-      const result1h = await this.getEMACross('BTC/USDT', Timeframe.ONE_HOUR, 50);
-      
+      const result1h = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
       if (result1h?.crossStatus !== "no" || this.isEMA) {
-
         const currentTime = new Date().toLocaleTimeString();
-        console.log("EMA 1 giờ", result1h, currentTime);
 
-      
-        if(this.huongEMA === "no") {
+        if (this.timeCrossEma === "" && this.huongEMA === "no") {
+          this.timeCrossEma = Date.now()
+        }
+        if (this.timeCrossEma !== "" && this.timeCrossEma && this.isEMA) {
+          const currentTime = Date.now();
+          const fiveMinutesInMillis = 90 * 60 * 1000;
+          const is90phut = currentTime - this.timeCrossEma > fiveMinutesInMillis;
+          if (is90phut) {
+            this.isEMA = false
+            this.huongEMA = "no"
+            this.timeCrossEma = ""
+          }
+        }
+
+        if (this.huongEMA === "no") {
           this.huongEMA = result1h?.crossStatus
         }
-        if(this.isEMA === false) {
+        if (this.isEMA === false) {
           this.isEMA = true
-        }
-       
-        if(this.giaEma === 0) {
-          this.giaEma = result1h?.crossStatus === "up" ? result1h.ema9 : result1h.ema25
         }
 
         const giabtc = await this.realtimeBTCWebsoketService.getCurrentBTCPrice(serverTime)
 
-        if(this.huongEMA === "up" ? this.giaEma + 100 > giabtc : this.giaEma - 100 < giabtc) {
-          console.log("Vô", this.giaEma, giabtc);
-          this.realtimeBTCWebsoketService.handleBuy(this.huongEMA, timeBinance, serverTime, this.giaEma);
-          this.giaEma = 0
+        if (this.huongEMA === "up" ? result1h?.openPrice + 200 > giabtc : result1h?.openPrice - 200 < giabtc) {
+          console.log("Buy" , currentTime , giabtc , "result1h" , result1h);
+          
+          this.realtimeBTCWebsoketService.handleBuy(this.huongEMA, timeBinance, serverTime);
           this.isEMA = false
           this.huongEMA = "no"
+          this.timeCrossEma = ""
         }
       }
 
