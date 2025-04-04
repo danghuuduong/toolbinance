@@ -37,10 +37,10 @@ export class realtimeBTCWebsoketService {
   }
   private messenger: string = "null";
 
-  async handleBuy(crossOverResult, timeBinance: string, timestamp, limitPrice) {
+  async handleBuy(crossOverResult, timeBinance: string, timestamp, ) {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
-    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, timestamp, limitPrice)
+    this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, timestamp)
     this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
 
     return
@@ -108,7 +108,7 @@ export class realtimeBTCWebsoketService {
     await created.save();
   }
 
-  async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp,limitPrice) {
+  async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp) {
     if (!result?.isActiveExecuteTrade && result?.isTrading) {
 
       const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(result.totalAmount, result.foldingCurrent);
@@ -116,7 +116,7 @@ export class realtimeBTCWebsoketService {
 
       const symbol = 'BTC/USDT';
 
-      const amount = moneyfodingOne / 1000;
+      const amount = moneyfodingOne / 800;
       await this.exchange.setLeverage(10, symbol);
 
       try {
@@ -125,11 +125,10 @@ export class realtimeBTCWebsoketService {
           timestamp,
         });
 
-
         if (order) {
           const currentPrice = parseFloat(order?.info?.avgPrice);
-          const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 1000 : currentPrice - 1000}`);
-          const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 1000 : currentPrice + 1000}`);
+          const takeProfitPrice = parseFloat(`${crossOverResult === "up" ? currentPrice + 800 : currentPrice - 800}`);
+          const stopLossPrice = parseFloat(`${crossOverResult === "up" ? currentPrice - 800 : currentPrice + 800}`);
 
           let stopLossOrder
           try {
@@ -190,7 +189,7 @@ export class realtimeBTCWebsoketService {
     try {
       let openOrders
       try {
-        openOrders = await this.exchange.fetchOpenOrders(symbol, undefined, 4, { timestamp });
+        openOrders = await this.exchange.fetchOpenOrders(symbol, undefined, 3, { timestamp });
       } catch (error) {
         console.log("Lỗi openOrders", error.message);
       }
@@ -253,7 +252,7 @@ export class realtimeBTCWebsoketService {
           resultSttatusTrading.isWaitingForCompletion && console.log("đã stop w", timeBinance);
           this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), payload);
         } else {
-          const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 4
+          const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 3
           const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
           const foldingCurrent = isFoldingbyMax ? 1 : (resultSttatusTrading.foldingCurrent + 1);
           const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, foldingCurrent);
