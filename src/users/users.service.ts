@@ -75,36 +75,9 @@ export class UsersService {
     }
   }
 
-  async findAll() {
-    const result = await this.userModel.find().exec();
-    return {
-      statusCode: HttpStatus.OK, // Mã trạng thái HTTP khi tìm kiếm thành công
-      message: "Users retrieved successfully",
-      data: result,
-    };
+
+  async findOneEmail(email: string) {
+    return await this.userModel.findOne({ email }).exec();
   }
 
-  async findById(id: string) {
-    const user = await this.userModel.findById(id).exec();
-    if (!user) {
-      return {
-        statusCode: HttpStatus.NOT_FOUND, // Trả về NOT_FOUND nếu không tìm thấy người dùng
-        message: "User not found",
-      };
-    }
-
-    // Giải mã keyApi và keySecret trước khi trả về
-    // const decryptedKeyApi = this.decryptText(user.keyApi);
-    // const decryptedKeySecret = this.decryptText(user.keySecret);
-
-    // return {
-    //   statusCode: HttpStatus.OK,
-    //   message: "User retrieved successfully",
-    //   data: {
-    //     ...user.toObject(),
-    //     keyApi: decryptedKeyApi, // Trả về keyApi đã giải mã
-    //     keySecret: decryptedKeySecret, // Trả về keySecret đã giải mã
-    //   },
-    // };
-  }
 }

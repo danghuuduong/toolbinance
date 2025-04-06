@@ -177,121 +177,124 @@ export class realtimeBTCWebsoketGateway
     const positions = await this.getPositions(symbol, serverTime);
     const timeBinance = this.timeService.formatTimestampToDatetime(data.E)
 
-    if (positions?.length > 0) {
+    // if (positions?.length > 0) {
 
-      const givenTimestamp = positions[0]?.timestamp;
-      const currentTime = Date.now();
-      const fiveMinutesInMillis = 0.5 * 60 * 1000;
-      const is1phut = currentTime - givenTimestamp > fiveMinutesInMillis;
+    //   const givenTimestamp = positions[0]?.timestamp;
+    //   const currentTime = Date.now();
+    //   const fiveMinutesInMillis = 0.5 * 60 * 1000;
+    //   const is1phut = currentTime - givenTimestamp > fiveMinutesInMillis;
 
-      if (is1phut) {
-        const currentPrice = parseFloat(positions[0]?.info?.entryPrice);
-        const crossOverResult = positions[0]?.side === "long" ? "sell" : " buy"
-        const takeProfitPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice + 1000 : currentPrice - 1000}`);
-        const stopLossPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice - 1000 : currentPrice + 1000}`);
-        const amount = positions[0]?.info?.positionAmt
+    //   // if (is1phut) {
+    //   //   const currentPrice = parseFloat(positions[0]?.info?.entryPrice);
+    //   //   const crossOverResult = positions[0]?.side === "long" ? "sell" : " buy"
+    //   //   const takeProfitPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice + 1000 : currentPrice - 1000}`);
+    //   //   const stopLossPrice = parseFloat(`${positions[0]?.side === "long" ? currentPrice - 1000 : currentPrice + 1000}`);
+    //   //   const amount = positions[0]?.info?.positionAmt
 
-        const isSL = openOrders?.find((value) => value.type === "stop_market")
-        const isTP = openOrders?.find((value) => value.type === "take_profit_market")
-
-
-        let stopLossOrder
-        if (!isSL?.info?.orderId) {
-          try {
-            stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, stopLossPrice, {
-              stopLossPrice: stopLossPrice,
-              reduceOnly: true,
-              oco: true,
-              timestamp: serverTime,
-            });
-            console.log("Soket - SL oke", timeBinance);
-          } catch (error) {
-            console.log("Lỗi SL ở socket", error);
-          }
-        }
-
-        let takeProfitOrder
-        if (!isTP?.info?.orderId) {
-          try {
-            takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, takeProfitPrice, {
-              takeProfitPrice: takeProfitPrice,
-              reduceOnly: true,
-              oco: true,
-              timestamp: serverTime,
-            });
-            console.log("Soket - TP oke", timeBinance);
-
-          } catch (error) {
-            console.log("Lỗi Tp ở socket", error);
-          }
-        }
-        if (stopLossOrder?.info?.orderId) {
-          const payload = {
-            idStopLossOrder: stopLossOrder?.info?.orderId
-          }
-          const { data } = await this.startTradingService.getStartTradingData();
-          const result = data?.[0]
-          result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
-        }
-
-        if (takeProfitOrder?.info?.orderId) {
-          const payload = {
-            idTakeProfitOrder: takeProfitOrder?.info?.orderI
-          }
-          const { data } = await this.startTradingService.getStartTradingData();
-          const result = data?.[0]
-          result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
-        }
-
-      }
-
-    }
-
-    isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance, serverTime)
+    //   //   const isSL = openOrders?.find((value) => value.type === "stop_market")
+    //   //   const isTP = openOrders?.find((value) => value.type === "take_profit_market")
 
 
+    //   //   let stopLossOrder
+    //   //   if (!isSL?.info?.orderId) {
+    //   //     try {
+    //   //       stopLossOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, stopLossPrice, {
+    //   //         stopLossPrice: stopLossPrice,
+    //   //         reduceOnly: true,
+    //   //         oco: true,
+    //   //         timestamp: serverTime,
+    //   //       });
+    //   //       console.log("Soket - SL oke", timeBinance);
+    //   //     } catch (error) {
+    //   //       console.log("Lỗi SL ở socket", error);
+    //   //     }
+    //   //   }
+
+    //   //   let takeProfitOrder
+    //   //   if (!isTP?.info?.orderId) {
+    //   //     try {
+    //   //       takeProfitOrder = await this.exchange.createOrder(symbol, 'market', crossOverResult, amount, takeProfitPrice, {
+    //   //         takeProfitPrice: takeProfitPrice,
+    //   //         reduceOnly: true,
+    //   //         oco: true,
+    //   //         timestamp: serverTime,
+    //   //       });
+    //   //       console.log("Soket - TP oke", timeBinance);
+
+    //   //     } catch (error) {
+    //   //       console.log("Lỗi Tp ở socket", error);
+    //   //     }
+    //   //   }
+    //   //   if (stopLossOrder?.info?.orderId) {
+    //   //     const payload = {
+    //   //       idStopLossOrder: stopLossOrder?.info?.orderId
+    //   //     }
+    //   //     const { data } = await this.startTradingService.getStartTradingData();
+    //   //     const result = data?.[0]
+    //   //     result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
+    //   //   }
+
+    //   //   if (takeProfitOrder?.info?.orderId) {
+    //   //     const payload = {
+    //   //       idTakeProfitOrder: takeProfitOrder?.info?.orderI
+    //   //     }
+    //   //     const { data } = await this.startTradingService.getStartTradingData();
+    //   //     const result = data?.[0]
+    //   //     result?._id && this.startTradingService.updateTrading(result._id.toString(), payload);
+    //   //   }
+
+    //   // }
+
+    // }
+
+    // isCandleClose && this.realtimeBTCWebsoketService.handleCheck(timeBinance, serverTime)
 
 
 
-    if (positions?.length === 0) {
-      const result1h = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
-      if (result1h?.crossStatus !== "no" || this.isEMA) {
-        const currentTime = new Date().toLocaleTimeString();
 
-        if (this.timeCrossEma === "" && this.huongEMA === "no") {
-          this.timeCrossEma = Date.now()
-        }
-        if (this.timeCrossEma !== "" && this.timeCrossEma && this.isEMA) {
-          const currentTime = Date.now();
-          const fiveMinutesInMillis = 90 * 60 * 1000;
-          const is90phut = currentTime - this.timeCrossEma > fiveMinutesInMillis;
-          if (is90phut) {
-            this.isEMA = false
-            this.huongEMA = "no"
-            this.timeCrossEma = ""
-          }
-        }
 
-        if (this.huongEMA === "no") {
-          this.huongEMA = result1h?.crossStatus
-        }
-        if (this.isEMA === false) {
-          this.isEMA = true
-        }
+    // if (positions?.length === 0) {
+    //   const result1h = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
 
-        const giabtc = await this.realtimeBTCWebsoketService.getCurrentBTCPrice(serverTime)
 
-        if (this.huongEMA === "up" ? result1h?.openPrice + 200 > giabtc : result1h?.openPrice - 200 < giabtc) {
-          console.log("Buy" , currentTime , giabtc , "result1h" , result1h);
+
+    //   if (result1h?.crossStatus !== "no" || this.isEMA) {
+    //     const currentTime = new Date().toLocaleTimeString();
+
+    //     if (this.timeCrossEma === "" && this.huongEMA === "no") {
+    //       this.timeCrossEma = Date.now()
+    //     }
+    //     if (this.timeCrossEma !== "" && this.timeCrossEma && this.isEMA) {
+    //       const currentTime = Date.now();
+    //       const fiveMinutesInMillis = 90 * 60 * 1000;
+    //       const is90phut = currentTime - this.timeCrossEma > fiveMinutesInMillis;
+    //       if (is90phut) {
+    //         this.isEMA = false
+    //         this.huongEMA = "no"
+    //         this.timeCrossEma = ""
+    //       }
+    //     }
+
+    //     if (this.huongEMA === "no") {
+    //       this.huongEMA = result1h?.crossStatus
+    //     }
+    //     if (this.isEMA === false) {
+    //       this.isEMA = true
+    //     }
+
+    //     const giabtc = await this.realtimeBTCWebsoketService.getCurrentBTCPrice(serverTime)
+
+    //     if (this.huongEMA === "up" ? result1h?.openPrice + 200 > giabtc : result1h?.openPrice - 200 < giabtc) {
+    //       console.log("Buy" , currentTime , giabtc , "result1h" , result1h);
           
-          this.realtimeBTCWebsoketService.handleBuy(this.huongEMA, timeBinance, serverTime);
-          this.isEMA = false
-          this.huongEMA = "no"
-          this.timeCrossEma = ""
-        }
-      }
+    //       // this.realtimeBTCWebsoketService.handleBuy(this.huongEMA, timeBinance, serverTime);
+    //       this.isEMA = false
+    //       this.huongEMA = "no"
+    //       this.timeCrossEma = ""
+    //     }
+    //   }
 
-    }
+    // }
 
 
     const candlestickInfo = {

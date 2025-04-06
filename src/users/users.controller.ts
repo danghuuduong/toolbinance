@@ -24,9 +24,4 @@ export class UsersController {
   updateUser(@Body() UpdateUserDto: UpdateUserDto) {
     return this.usersService.updateUser(UpdateUserDto);
   }
-
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
-  }
 }
