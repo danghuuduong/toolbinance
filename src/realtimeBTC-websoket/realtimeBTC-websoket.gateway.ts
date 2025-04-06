@@ -255,9 +255,6 @@ export class realtimeBTCWebsoketGateway
 
     if (positions?.length === 0) {
       const result1h = await this.getEMACross('BTC/USDT', Timeframe.FIFTEEN_MINUTES, 50);
-
-
-
       if (result1h?.crossStatus !== "no" || this.isEMA) {
         const currentTime = new Date().toLocaleTimeString();
 
