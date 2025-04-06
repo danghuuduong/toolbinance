@@ -3,25 +3,22 @@ import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class User {
-  @Prop({ type: String })
+  @Prop({ type: String, required: true })
   name: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, required: true, unique: true })
   email: string;
 
-  @Prop({ type: String })
-  usd: string;
+  @Prop({ type: String, required: true })
+  password: string;
 
-  @Prop({ type: String })
-  profit: string;
+  @Prop({ type: String, required: true })
+  keyApi: string;
 
-  @Prop({ type: String })
-  deathCount: string;
-
-  @Prop({ type: String })
-  totalOrders: string;
+  @Prop({ type: String, required: true })
+  keySecret: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

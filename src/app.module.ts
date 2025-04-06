@@ -10,6 +10,7 @@ import { MyInfomationModule } from './my-infomation-from-binance/my-infomation.m
 import { AmountModule } from './money-history-changes/amount.module';
 import { realtimeBTCWebsoketModule } from './realtimeBTC-websoket/realtimeBTC-websoket.module';
 import { OrderHistoryModule } from './orderHistory/orderHistory.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { OrderHistoryModule } from './orderHistory/orderHistory.module';
     UsersModule,
     MyInfomationModule,
     AmountModule,
-    OrderHistoryModule
+    OrderHistoryModule,
+    AuthModule
   ],
   controllers: [AppController],
   providers: [AppService],

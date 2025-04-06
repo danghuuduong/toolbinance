@@ -11,9 +11,6 @@ export class CreateUserDto {
   password: string;
 
   @IsString()
-  repassword: string;
-
-  @IsString()
   keyApi: string;
 
   @IsString()
