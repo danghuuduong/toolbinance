@@ -12,6 +12,6 @@ export class UpdateUserDto {
     keyApi: string;
 
     @IsString()
-    keySecret: string;
+    secret: string;
 }
 

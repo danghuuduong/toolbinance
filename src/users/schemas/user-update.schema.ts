@@ -10,7 +10,7 @@ export class UserUpdate {
   keyApi: string;
 
   @Prop({ type: String, required: true })
-  keySecret: string;
+  secret: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(UserUpdate);

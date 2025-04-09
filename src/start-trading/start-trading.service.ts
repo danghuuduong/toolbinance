@@ -4,33 +4,40 @@ import { Model } from 'mongoose';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
 import { StartTrading } from './schemas/start-trading..schema';
 import { UpdateStartTradingDto } from './dto/update-status-trading.dto';
+// import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class startTradingService {
 
-  constructor(private readonly handleFoldingService: handleFoldingService,
+  constructor(
+    private readonly handleFoldingService: handleFoldingService,
     @InjectModel(StartTrading.name) private startTradingModel: Model<StartTrading>
+
   ) { }
 
-  async startTrading(payload) {
-    const { tradeRate, largestMoney, isTrading } = payload;
-    const totalAmount = (Number(largestMoney) / 100) * Number(tradeRate) || 0;
-    const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, 1);
+  async createStartTrading(id) {
+    console.log("id", id);
+
     const newRespon = {
-      statusCode: HttpStatus.OK,
-      message: 'ok',
-      isTrading: isTrading || false,
+      id,
+      isTrading: false,
       foldingCurrent: 1,
-      largestMoney: largestMoney,
-      totalAmount: totalAmount,
-      moneyfodingOne: moneyfodingOne,
+      largestMoney: 0,
+      totalAmount: 0,
+      moneyfodingOne: 0,
       isActiveExecuteTrade: false,
       isWaitingForCompletion: false,
-      tradeRate: tradeRate,
+      tradeRate: "10",
     }
     const createdStartTrading = new this.startTradingModel(newRespon);
     const result = await createdStartTrading.save();
-    return result
+    console.log("result", result);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: "ok",
+      data: id,
+    };
   }
 
   async updateTrading(id: string, updateDto: UpdateStartTradingDto) {

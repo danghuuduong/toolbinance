@@ -1,64 +1,74 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import * as ccxt from 'ccxt';
+import { decryptText } from 'src/helper/until';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class MyInfomationService {
   private exchange: ccxt.binance;
+  private usersService: UsersService;
 
-  constructor() {
+  constructor(usersService: UsersService) {
+    this.usersService = usersService;
+  }
+
+
+  private async setExchange(userId: string) {
+    const userApiCredentials = await this.usersService.findOne(userId);
+
+    const ivBuffer = Buffer.from(userApiCredentials?.iv, 'hex');
+    const saltBuffer = Buffer.from(userApiCredentials?.salt, 'hex');
+    const encryptedBuffer = Buffer.from(userApiCredentials?.secret, 'hex');
+
+    const handleSecret = await decryptText(ivBuffer, saltBuffer, encryptedBuffer);
+
     this.exchange = new ccxt.binance({
-      apiKey: process.env.BINANCE_API_KEY,
-      secret: process.env.BINANCE_API_SECRET,
+      apiKey: userApiCredentials.keyApi,
+      secret: handleSecret,
       enableRateLimit: true,
-      options: {
-        defaultType: 'future', // Chỉ làm việc với Futures
-      },
+      options: { defaultType: 'future' },
     });
-
-    // Kiểm tra xem API Key và Secret đã được cấu hình đúng chưa
-    if (!process.env.BINANCE_API_KEY || !process.env.BINANCE_API_SECRET) {
-      throw new Error('API Key và API Secret chưa được cung cấp.');
-    }
   }
 
-  async getServerTime() {
+  async getMyInfomation(userId: string) {
     try {
-      const response = await axios.get('https://api.binance.com/api/v3/time');
-      return response.data.serverTime;  // Trả về serverTime từ Binance
-    } catch (error) {
-      console.error('Không thể lấy thời gian :', error);
-      return
-    }
-  }
+      await this.setExchange(userId);
 
-  async getMyInfomation() {
-    try {
+      console.log("userId", userId);
+
       const timestamp = await this.getServerTime();
+      const balance = await this.exchange.fetchBalance({ timestamp });
 
-      const balance = await this.exchange.fetchBalance({
-        timestamp
-      });
-      
       if (!balance) {
-        // throw new Error('Không thể lấy thông tin số dư từ Binance.');
-        return
+        return;
       }
 
-      // In ra số dư của tài khoản
-      const data = {
+      return {
         info: balance.info,
         USDT: balance.USDT,
         free: balance.USDT.free,
         timestamp: balance.timestamp,
         datetime: balance.datetime,
       };
-
-      return data;
     } catch (error) {
-      console.error('Lỗi khi lấy thông tin tài khoản:', error.message);
-      return
-      throw new Error('Lỗi khi lấy thông tin tài khoản: ' + error.message);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Lỗi Key + secret ở sàn Binance',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+  }
+
+  async getServerTime() {
+    try {
+      const response = await axios.get('https://api.binance.com/api/v3/time');
+      return response.data.serverTime;
+    } catch (error) {
+      console.error('Không thể lấy thời gian:', error);
+      throw new Error('Không thể lấy thời gian');
     }
   }
 }

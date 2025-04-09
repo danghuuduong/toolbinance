@@ -23,19 +23,20 @@ export class UsersService {
 
     const hashedPassword = await hashedPasswordHelper(createUserDto.password)
 
-    const { iv, salt, encrypted } = await encryptText(createUserDto.keySecret);
-    console.log('Encrypted text:', encrypted.toString('hex'));
+    const { iv, salt, encrypted } = await encryptText(createUserDto.secret);
 
     const { name, email, keyApi } = createUserDto
+
     const createdUser = new this.userModel({
       name,
       email,
       password: hashedPassword,
       keyApi,
-      keySecret: encrypted.toString('hex'),
+      secret: encrypted.toString('hex'),
+      iv: iv.toString('hex'),
+      salt: salt.toString('hex'),
     });
     const result = await createdUser.save();
-
     return {
       statusCode: HttpStatus.CREATED,
       message: "Tạo người dùng thành công",
@@ -44,13 +45,11 @@ export class UsersService {
   }
 
   async updateUser(updateUserDto) {
-    const { _id, keyApi, keySecret } = updateUserDto;
-    console.log('updateUserDto', updateUserDto);
-
+    const { _id, keyApi, secret } = updateUserDto;
     try {
       const updatedUser = await this.userModel.findByIdAndUpdate(
         _id,
-        { keyApi, keySecret },
+        { keyApi, secret },
         { new: true, runValidators: true },
       ).exec();
 
@@ -78,6 +77,65 @@ export class UsersService {
 
   async findOneEmail(email: string) {
     return await this.userModel.findOne({ email }).exec();
+  }
+
+  async findOne(id: string) {
+    return await this.userModel.findById(id).exec();
+  }
+
+  async findAll() {
+    try {
+      const users = await this.userModel.find()
+      .select('-password -keyApi -iv -secret -salt -_id -email')
+      .exec();
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Danh sách người dùng',
+        data: users,
+      };
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách người dùng:', error);
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Đã xảy ra lỗi khi lấy danh sách người dùng',
+      };
+    }
+  }
+
+  async findOneFE(id: string) {
+    try {
+      const user = await this.userModel
+        .findById(id)
+        .select('-password -keyApi -iv -secret -salt -email')  // Loại bỏ password và keyApi
+        .exec();
+
+      if (!user) {
+        return {
+          statusCode: HttpStatus.NOT_FOUND,  // Người dùng không tồn tại
+          message: 'Người dùng không tồn tại',
+        };
+      }
+
+      return {
+        statusCode: HttpStatus.OK,  // Thành công
+        message: 'Tìm thấy người dùng',  // Thông báo thành công
+        data: user,  // Dữ liệu người dùng không có password và keyApi
+      };
+    } catch (error) {
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,  // Lỗi server
+        message: 'Có lỗi xảy ra khi tìm người dùng',
+        error: error.message,  // Chi tiết lỗi
+      };
+    }
+  }
+
+  async updateRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    const user = await this.userModel.findById(userId);
+    if (user) {
+      user.refresh_token = refreshToken; // Cập nhật refresh_token
+      await user.save();
+    }
   }
 
 }

@@ -14,5 +14,5 @@ export class CreateUserDto {
   keyApi: string;
 
   @IsString()
-  keySecret : string;
+  secret : string;
 }

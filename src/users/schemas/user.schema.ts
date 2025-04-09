@@ -18,7 +18,16 @@ export class User {
   keyApi: string;
 
   @Prop({ type: String, required: true })
-  keySecret: string;
+  secret: string;
+
+  @Prop({ type: String})
+  iv: string;
+  
+  @Prop({ type: String})
+  salt: string;
+
+  refresh_token?: string;
+
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

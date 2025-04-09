@@ -1,7 +1,7 @@
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { JwtService } from '@nestjs/jwt';
+import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { comparePasswordHelper } from 'src/helper/until';
 
@@ -12,23 +12,70 @@ export class AuthService {
     private jwtService: JwtService
   ) { }
 
-  async signIn(
-    email: string,
-    pass: string,
-  ): Promise<{ access_token: string }> {
-    console.log('email', email);
-    console.log('pass', pass);
-    
-    const user = await this.usersService.findOneEmail(email);
-    console.log('user', user);
-   
+
+  async validateUser(username: string, pass: string): Promise<any> {
+    const user = await this.usersService.findOneEmail(username);
     const isValidPassword = await comparePasswordHelper(pass, user?.password)
-    if (!isValidPassword || !user?._id) {
-      throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng');
+    if (!isValidPassword || !user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Email hoặc mật khẩu không chính xác',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
-    const payload = { sub: user._id, email: user.email };
-    return {
-      access_token: await this.jwtService.signAsync(payload),
-    };
+    return user;
+  }
+
+  async login(user: any) {
+    if (user) {
+      const payload = { email: user?.email, sub: user?._id }
+
+      const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
+      // await this.usersService.updateRefreshToken(user._id, refreshToken);
+      return {
+        statusCode: HttpStatus.OK,  // Mã trạng thái thành công (200)
+        message: 'Đăng nhập thành công',  // Thông điệp thành công
+        data: {
+          access_token: await this.jwtService.signAsync(payload),
+          refresh_token: refreshToken,
+        },
+      };
+    }
+  }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const decoded = await this.jwtService.verifyAsync(refreshToken, { secret: process.env.JWT_SECRET_KEY });
+      const user = await this.usersService.findOne(decoded.sub);
+
+      if (!user) throw new UnauthorizedException('Không tìm thấy user');
+
+      const payload = { email: user.email, sub: user._id };
+      const accessToken = await this.jwtService.signAsync(payload);
+
+      return { access_token: accessToken };
+    } catch (e) {
+      throw new UnauthorizedException('Mã thông báo làm mới không hợp lệ hoặc hết hạn');
+    }
+  }
+
+  async validateToken(token: string): Promise<boolean> {
+    try {
+      this.jwtService.verify(token);  
+      console.log('Token oke'); 
+      return true;  
+    } catch (error) {
+      // Xử lý lỗi nếu token không hợp lệ hoặc đã hết hạn
+      if (error instanceof TokenExpiredError) {
+        console.log('Token đã hết hạn');
+      } else if (error instanceof JsonWebTokenError) {
+        console.log('Token không hợp lệ');
+      } else {
+        console.log('Lỗi xác thực token:', error.message);
+      }
+      return false;  // Nếu có lỗi, token không hợp lệ
+    }
   }
 }

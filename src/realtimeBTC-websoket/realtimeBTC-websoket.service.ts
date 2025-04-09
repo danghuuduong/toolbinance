@@ -5,13 +5,10 @@ import { Timeframe } from 'src/candle/dto/timeframe.enum';
 import { EMA } from 'technicalindicators';
 import { EmaCrossHistory } from './schemas/realtimeBTC-websoket.schema';
 import { Model } from 'mongoose';
-import { CreateEmaCrossHistoryDto } from './dto/create-ema-cross-history.dto';
 import { startTradingService } from 'src/start-trading/start-trading.service';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
 import * as ccxt from 'ccxt';
 import { MyInfomationService } from 'src/my-infomation-from-binance/my-infomation.service';
-import { AmountService } from 'src/money-history-changes/amount.service';
-import axios from 'axios';
 
 @Injectable()
 export class realtimeBTCWebsoketService {
@@ -22,7 +19,6 @@ export class realtimeBTCWebsoketService {
     private readonly startTradingService: startTradingService,
     private readonly handleFoldingService: handleFoldingService,
     private readonly MyInfomationService: MyInfomationService,
-    private readonly AmountService: AmountService,
 
     @InjectModel(EmaCrossHistory.name) private EmaCrossHistoryModel: Model<EmaCrossHistory>
   ) {
@@ -41,7 +37,6 @@ export class realtimeBTCWebsoketService {
     const { data } = await this.startTradingService.getStartTradingData();
     const resultSttatusTrading = data?.[0]
     this.handleStartExecuteTrade(crossOverResult, resultSttatusTrading, timeBinance, timestamp)
-    this.handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance)
 
     return
   }
@@ -83,31 +78,7 @@ export class realtimeBTCWebsoketService {
     }
   }
 
-  async callApiGetCandle() {
-    return this.candleService.getBTCOLHCandles({
-      limit: "60",
-      type: Timeframe.FIFTEEN_MINUTES,
-    })
-  }
-
-  async handleEmaCrossHistorySave(crossOverResult, resultSttatusTrading, timeBinance) {
-    const currentTime = new Date().toLocaleTimeString();
-    const newData: CreateEmaCrossHistoryDto = {
-      cross: crossOverResult,
-      isTrading: resultSttatusTrading?.isTrading,
-      isActiveExecuteTrade: resultSttatusTrading?.isActiveExecuteTrade, //khoan
-      isWaitingForCompletion: resultSttatusTrading?.isWaitingForCompletion,
-      tradeRate: resultSttatusTrading?.tradeRate,
-      totalAmount: resultSttatusTrading?.totalAmount,
-      moneyfodingOne: resultSttatusTrading?.moneyfodingOne,
-      foldingCurrent: resultSttatusTrading?.foldingCurrent,
-      largestMoney: resultSttatusTrading?.largestMoney,
-      time: currentTime,
-    };
-    const created = new this.EmaCrossHistoryModel(newData);
-    await created.save();
-  }
-
+  
   async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp) {
     if (!result?.isActiveExecuteTrade && result?.isTrading) {
 
@@ -219,19 +190,11 @@ export class realtimeBTCWebsoketService {
 
         let sodu
         try {
-          sodu = await this.MyInfomationService.getMyInfomation()
+          sodu = await this.MyInfomationService.getMyInfomation("1")
         } catch (error) {
           console.log("Lỗi getMyInfomation", error.message);
         }
 
-        try {
-          const idHistoryMoney = await this.AmountService.findAll()
-          this.AmountService.update(idHistoryMoney?.[0]?._id.toString(), {
-            history: [`${sodu.USDT.total}`]
-          })
-        } catch (error) {
-          console.log("Lỗi history", error.message);
-        }
 
         if (isWin) {
           const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
@@ -339,13 +302,5 @@ export class realtimeBTCWebsoketService {
     }
   }
 
-  async getServerTime() {
-    try {
-      const response = await axios.get('https://api.binance.com/api/v3/time');
-      return response.data.serverTime; // Trả về serverTime từ Binance
-    } catch (error) {
-      console.error('Không thể lấy thời gian từ máy chủ Binance:', error);
-    }
-  }
   getMessenger() { return this.messenger }
 }

@@ -5,6 +5,9 @@ export type StartTradingDocument = HydratedDocument<StartTrading>;
 
 @Schema()
 export class StartTrading {
+  @Prop({ type: String })
+  id: string;
+
   @Prop({ type: Boolean })
   isTrading: boolean;
 

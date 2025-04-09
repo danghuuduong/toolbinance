@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, HttpStatus, Param, Post, Pu
 import { startTradingService } from './start-trading.service';
 import { startTradingDto } from './dto/start-trading.dto';
 import { UpdateStartTradingDto } from './dto/update-status-trading.dto';
+import { Public } from 'src/decorate/customize';
 
 @Controller('status')
 export class StatusTradingController {
@@ -12,9 +13,10 @@ export class StatusTradingController {
     return result;
   }
 
-  @Post('start-trading')
-  async startTrading(@Body() startTradingDto: startTradingDto) {
-    return this.startTradingService.startTrading(startTradingDto);
+  @Public()
+  @Post('create-start-trading')
+  async createStartTrading(@Body() payload: { userId: string }) {
+    return this.startTradingService.createStartTrading(payload.userId);
   }
 
   @Post('stop-trading')
@@ -29,5 +31,5 @@ export class StatusTradingController {
   ) {
     return this.startTradingService.updateTrading(id, updateDto);
   }
-  
+
 }
