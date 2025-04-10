@@ -1,6 +1,12 @@
 import { IsBoolean, IsOptional, IsNumber, IsString } from 'class-validator';
 
 export class UpdateStartTradingDto {
+
+    @IsOptional()
+    @IsBoolean()
+    id?: string; 
+
+
     @IsOptional()
     @IsBoolean()
     isActiveExecuteTrade?: boolean; 

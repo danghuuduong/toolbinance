@@ -13,7 +13,13 @@ export class StatusTradingController {
     return result;
   }
 
-  @Public()
+
+  @Get(':id')
+  async getTradingById(@Param('id') id: string) {
+    console.log("id", id);
+    return await this.startTradingService.getTradingById(id);
+  }
+
   @Post('create-start-trading')
   async createStartTrading(@Body() payload: { userId: string }) {
     return this.startTradingService.createStartTrading(payload.userId);

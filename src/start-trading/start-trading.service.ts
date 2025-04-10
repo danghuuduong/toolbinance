@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { handleFoldingService } from 'src/common/until/handleFoldingToMoney/handleFolding.service';
@@ -16,8 +16,6 @@ export class startTradingService {
   ) { }
 
   async createStartTrading(id) {
-    console.log("id", id);
-
     const newRespon = {
       id,
       isTrading: false,
@@ -31,34 +29,35 @@ export class startTradingService {
     }
     const createdStartTrading = new this.startTradingModel(newRespon);
     const result = await createdStartTrading.save();
-    console.log("result", result);
 
     return {
       statusCode: HttpStatus.OK,
       message: "ok",
-      data: id,
+      data: result?.id,
     };
   }
 
   async updateTrading(id: string, updateDto: UpdateStartTradingDto) {
+    console.log("update", updateDto);
+
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid ID.');
     }
 
     try {
-      const updatedStartTrading = await this.startTradingModel.findByIdAndUpdate(
-        id,
+      const updatedStartTrading = await this.startTradingModel.findOneAndUpdate(
+        { id: id },
         { ...updateDto },
         { new: true } // Trả về bản ghi đã được cập nhật
       );
 
       if (!updatedStartTrading) {
-        throw new Error('Trading record not found.');
+        throw new Error('không tìm thấy status trading');
       }
 
       return updatedStartTrading;
     } catch (error) {
-      throw new Error(`Failed to update trading record: ${error.message}`);
+      throw new Error(`update status lỗi: ${error.message}`);
     }
   }
 
@@ -78,6 +77,32 @@ export class startTradingService {
       };
     }
   }
+
+  async getTradingById(id: string) {
+    try {
+      const result = await this.startTradingModel.findOne({ id: id });
+      if (!result) {
+        throw new HttpException(
+          'Trading data not found',
+          HttpStatus.NOT_FOUND, // 404
+        );
+      }
+
+      return {
+        statusCode: HttpStatus.OK, // 200
+        message: 'Trading data retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      // Catch any errors (e.g., database issues, invalid ID)
+      throw new HttpException(
+        error.message || 'An unexpected error occurred',
+        HttpStatus.INTERNAL_SERVER_ERROR, // 500
+      );
+    }
+  }
+
+
 
   async stopTrading() {
     const { data } = await this.getStartTradingData();

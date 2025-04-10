@@ -40,6 +40,7 @@ export class AuthService {
         data: {
           access_token: await this.jwtService.signAsync(payload),
           refresh_token: refreshToken,
+          id:user?._id
         },
       };
     }

@@ -35,8 +35,6 @@ export class MyInfomationService {
     try {
       await this.setExchange(userId);
 
-      console.log("userId", userId);
-
       const timestamp = await this.getServerTime();
       const balance = await this.exchange.fetchBalance({ timestamp });
 

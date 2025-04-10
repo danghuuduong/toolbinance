@@ -6,11 +6,15 @@ import { HttpStatus } from '@nestjs/common'; // Import HttpStatus
 import * as crypto from 'crypto'; // Thêm import crypto
 import { User, UserDocument } from './schemas/user.schema';
 import { comparePasswordHelper, decryptText, encryptText, hashedPasswordHelper } from 'src/helper/until';
+import { startTradingService } from 'src/start-trading/start-trading.service';
 
 @Injectable()
 export class UsersService {
 
-  constructor(@InjectModel(User.name) private userModel: Model<User>) { }
+  constructor(
+    private readonly startTradingService: startTradingService,
+    @InjectModel(User.name) private userModel: Model<User>
+  ) { }
 
   async create(createUserDto) {
     const isEmailExists = await this.userModel.findOne({ email: createUserDto.email }).exec();
@@ -37,6 +41,7 @@ export class UsersService {
       salt: salt.toString('hex'),
     });
     const result = await createdUser.save();
+    result?._id && this.startTradingService.createStartTrading(result?._id)
     return {
       statusCode: HttpStatus.CREATED,
       message: "Tạo người dùng thành công",
