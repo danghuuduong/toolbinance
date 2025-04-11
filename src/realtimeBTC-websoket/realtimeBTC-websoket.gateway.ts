@@ -23,9 +23,9 @@ import { Timeframe } from 'src/candle/dto/timeframe.enum';
   },
 })
 
-export class realtimeBTCWebsoketGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+export class realtimeBTCWebsoketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
+
   private exchange: ccxt.binance;
 
   private binanceWs: WebSocket;
@@ -87,12 +87,6 @@ export class realtimeBTCWebsoketGateway
 
   reconnectWebSocket() { this.connectToBinance(this.currentInterval); }// Hàm tự động reconnect sau khi WebSocket bị đóng
 
-  @SubscribeMessage('changeTimeInterval')
-  handleTimeIntervalChange(client: Socket, interval: string) {
-    if (this.binanceWs) {
-      this.binanceWs.close();
-    }
-  }
 
   async getServerTime() {
     try {
@@ -285,8 +279,8 @@ export class realtimeBTCWebsoketGateway
         const giabtc = await this.realtimeBTCWebsoketService.getCurrentBTCPrice(serverTime)
 
         if (this.huongEMA === "up" ? result1h?.openPrice + 200 > giabtc : result1h?.openPrice - 200 < giabtc) {
-          console.log("Buy" , currentTime , giabtc , "result1h" , result1h);
-          
+          console.log("Buy", currentTime, giabtc, "result1h", result1h);
+
           // this.realtimeBTCWebsoketService.handleBuy(this.huongEMA, timeBinance, serverTime);
           this.isEMA = false
           this.huongEMA = "no"
@@ -315,6 +309,17 @@ export class realtimeBTCWebsoketGateway
     this?.server?.emit('candleStick-RealTime', candlestickInfo);
   }
 
+  @SubscribeMessage('changeTimeInterval')
+  handleTimeIntervalChange(client: Socket, id: string) {
+    console.log("id", id);
+
+    // if (this.binanceWs) {
+    //   this.binanceWs.close();
+    // }
+
+    // Bạn có thể xử lý thêm logic sử dụng `id` ở đây nếu cần
+    // Ví dụ: this.connectToNewStream(id);
+  }
 
   handleConnection(client: Socket) { }
   handleDisconnect(client: Socket) { }

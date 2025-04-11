@@ -27,18 +27,10 @@ export class UpdateStartTradingDto {
     @IsString()
     largestMoney?: string;
 
-    @IsOptional()
-    @IsNumber()
-    totalAmount?: number;
 
     @IsOptional()
     @IsNumber()
     foldingCurrent?: number;
-
-    
-    @IsOptional()
-    @IsNumber()
-    moneyfodingOne?: number;
 
     @IsOptional()
     @IsString()

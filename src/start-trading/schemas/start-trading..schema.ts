@@ -17,12 +17,6 @@ export class StartTrading {
   @Prop({ type: Number })
   largestMoney: number;
 
-  @Prop({ type: Number })
-  totalAmount: number;
-
-  @Prop({ type: Number })
-  moneyfodingOne: number;
-
   @Prop({ type: Boolean })
   isActiveExecuteTrade: boolean;
 

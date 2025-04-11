@@ -21,8 +21,6 @@ export class startTradingService {
       isTrading: false,
       foldingCurrent: 1,
       largestMoney: 0,
-      totalAmount: 0,
-      moneyfodingOne: 0,
       isActiveExecuteTrade: false,
       isWaitingForCompletion: false,
       tradeRate: "10",

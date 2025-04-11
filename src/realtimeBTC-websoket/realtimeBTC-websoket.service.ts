@@ -63,8 +63,8 @@ export class realtimeBTCWebsoketService {
       const currentPage = param.page;
 
       return {
-        status: 'ok',  // Trạng thái yêu cầu thành công
-        message: 'Data fetched successfully',  // Thông báo
+        status: 'ok',
+        message: 'Data fetched successfully',
         totalCount,
         totalPages,
         currentPage,
@@ -82,7 +82,9 @@ export class realtimeBTCWebsoketService {
   async handleStartExecuteTrade(crossOverResult, result, timeBinance, timestamp) {
     if (!result?.isActiveExecuteTrade && result?.isTrading) {
 
-      const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(result.totalAmount, result.foldingCurrent);
+      const calculateTotalAmount =  result.largestMoney * (result.tradeRate / 100)
+      
+      const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(calculateTotalAmount, result.foldingCurrent);
       const LS = crossOverResult === "up" ? "buy" : "sell";
 
       const symbol = 'BTC/USDT';
@@ -197,18 +199,14 @@ export class realtimeBTCWebsoketService {
 
 
         if (isWin) {
-          const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
           console.log("đã win : ", totalPnl, "$ tại thếp", resultSttatusTrading.foldingCurrent, "time", timeBinance);
 
-          const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, resultSttatusTrading.foldingCurrent);
           const payload = {
             isActiveExecuteTrade: false,
             foldingCurrent: 1,
             idOrderMain: "null",
             idStopLossOrder: "null",
             idTakeProfitOrder: "null",
-            moneyfodingOne,
-            totalAmount,
             ...sodu.USDT.total > resultSttatusTrading.largestMoney && { largestMoney: `${sodu.USDT.total}` },
             ...resultSttatusTrading.isWaitingForCompletion && { isTrading: false, isWaitingForCompletion: false }
           }
@@ -216,15 +214,11 @@ export class realtimeBTCWebsoketService {
           this.startTradingService.updateTrading(resultSttatusTrading._id.toString(), payload);
         } else {
           const isFoldingbyMax = resultSttatusTrading.foldingCurrent === 3
-          const totalAmount = (Number(sodu.USDT.total) / 100) * Number(resultSttatusTrading.tradeRate) || 0;
           const foldingCurrent = isFoldingbyMax ? 1 : (resultSttatusTrading.foldingCurrent + 1);
-          const moneyfodingOne = this.handleFoldingService.handleFodingToMoney(totalAmount, foldingCurrent);
 
           const payload = {
             isActiveExecuteTrade: false,
             foldingCurrent,
-            totalAmount,
-            moneyfodingOne,
             idOrderMain: "null",
             idStopLossOrder: "null",
             idTakeProfitOrder: "null",

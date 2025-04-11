@@ -22,12 +22,6 @@ export class EmaCrossHistory {
   tradeRate: number;
 
   @Prop({ type: Number })
-  totalAmount: number;
-
-  @Prop({ type: Number })
-  moneyfodingOne: number;
-
-  @Prop({ type: Number })
   foldingCurrent: number;
 
   @Prop({ type: Number })
